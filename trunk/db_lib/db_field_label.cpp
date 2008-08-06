@@ -1,3 +1,23 @@
+/***************************************************************************
+ *   Copyright (C) 2007 by Philippe   *
+ *   nel230@gmail.ch   *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
 #include "db_field_label.h"
 #include <iostream>
 #include <QSqlQuery>
@@ -25,6 +45,7 @@ bool db_field_label::init(const db_connection *cnn, const QString &table_name)
   pv_cnn = cnn;
   pv_cnn_qname = cnn->get_cnn_name();
   pv_cnn_cname = cnn->get_cnn_name().toStdString().c_str();
+
   pv_query = new QSqlQuery(pv_cnn->get_db());
   pv_rc_query = new QSqlQuery(pv_cnn->get_db());
 
@@ -78,7 +99,7 @@ QString db_field_label::get_label(const QString &field_name)
     return field_name;
   }
   if(!pv_query->next()){
-    std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": No row found" << std::endl;
+    //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": No row found" << std::endl;
     return field_name;
   }
   QSqlRecord rec = pv_query->record();
@@ -135,14 +156,14 @@ bool db_field_label::table_exists(const QString &table_name)
 {
   // See if the table exists
   pv_SQL = "SELECT * FROM " + pv_sys_table_name + ";";
-  std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": execute: " << pv_SQL.toStdString().c_str() << std::endl;
+  //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": execute: " << pv_SQL.toStdString().c_str() << std::endl;
   if(!pv_query->exec(pv_SQL)){
 	std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": SQL error by:\n\t" << pv_SQL.toStdString().c_str() << std::endl;
 	std::cerr << pv_query->lastError().text().toStdString().c_str() << std::endl;
 	return false;
   }
   if(row_count(pv_SQL) >= 1){
-        std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": found" << std::endl;
+        //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": found" << std::endl;
 	return true;
   }
   std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": not found" << std::endl;

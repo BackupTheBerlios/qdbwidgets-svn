@@ -1,3 +1,23 @@
+/***************************************************************************
+ *   Copyright (C) 2007 by Philippe   *
+ *   nel230@gmail.ch   *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
 #include "main_dialog.h"
 
 #include <iostream>
@@ -37,6 +57,11 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_tabw->select();
     pv_tablew = new db_table_widget("test");
     pv_tablew->init(cnn, pv_table_name);
+
+    /// TESTS avec selectionsmodeles
+    pv_selection_model = new QItemSelectionModel(pv_tabw->get_model());
+    pv_tablew->set_selection_model(pv_selection_model);
+
     pv_form = new db_form("test");
     pv_form->init(cnn, pv_table_name, "address_client");
     pv_searchw = new db_search_widget("test");

@@ -1,8 +1,27 @@
+/***************************************************************************
+ *   Copyright (C) 2007 by Philippe   *
+ *   nel230@gmail.ch   *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
 #include "db_table_widget.h"
 #include <iostream>
 #include <QString>
 #include <QStringList>
-#include <QSqlRelationalTableModel>
 #include <QTableView>
 #include <QSqlRecord>
 #include <QSqlError>
@@ -17,6 +36,7 @@
 #include <QPushButton>
 #include <QMessageBox>
 #include <QPoint>
+#include <QItemSelectionModel>
 
 db_table_widget::db_table_widget(const QString &name, QWidget *parent)
     : QWidget(parent)
@@ -30,24 +50,12 @@ bool db_table_widget::init(const db_connection *cnn, const QString &table_name)
   pv_layout = new QVBoxLayout(this);
   pv_hlayout = new QHBoxLayout(this);
 
-  // Init the labels
-  pv_label.init(cnn, table_name);
-
   setWindowTitle(table_name);
 
   // Init the model
-  pv_table_model = new QSqlRelationalTableModel(this, cnn->get_db());
-  pv_table_model->setTable(table_name);
-
-  // Set the header data - take from field_label class instance
-  int i;
-  QStringList lst;
-  for(i=0; i<pv_table_model->columnCount() ;i++){
-    lst.insert(i, pv_table_model->headerData(i, Qt::Horizontal).toString());
-    pv_table_model->setHeaderData(i , Qt::Horizontal, pv_label.get_label(lst.at(i)));
-  }
-  // Store fileds names
-  pv_field_names = lst;
+  pv_table_model = new db_relational_model(this, cnn->get_db());
+  pv_table_model->init(cnn, table_name);
+  pv_table_model->set_user_headers();
 
   //pv_FKs = new QSqlIndex();
 
@@ -81,6 +89,16 @@ bool db_table_widget::init(const db_connection *cnn, const QString &table_name)
   );
 
   return true;
+}
+
+void db_table_widget::set_selection_model(QItemSelectionModel *model)
+{
+  pv_table_view->setSelectionModel(model);
+}
+
+QAbstractItemModel * db_table_widget::get_model()
+{
+  return pv_table_view->model();
 }
 
 void db_table_widget::insert_record()
@@ -139,12 +157,12 @@ void db_table_widget::as_child_before_insert(QSqlRecord &rec)
 // AS child, recieve data_changed signal FROM parent
 void db_table_widget::slot_current_data_changed(const QStringList &relations_values)
 {
-  pv_filter.clear();
+  pv_table_model->clear_filter();
   pv_as_child_relation_values = relations_values;
   // For each field, add criteria to the filter
   int i=0;
   for(i=0; i<pv_as_child_relation_values.count(); i++){
-    if(!add_filter(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i))){
+    if(!pv_table_model->add_filter(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i))){
       std::cerr << "db_table_widget::" << __FUNCTION__ << ": relation criteria failed" << std::endl;
     }
   }
@@ -175,11 +193,6 @@ void db_table_widget::set_editable(bool editable)
 int db_table_widget::field_count()
 {
   return pv_table_model->columnCount();
-}
-
-QString db_table_widget::get_field_name(int col)
-{
-  return pv_field_names.at(col);
 }
 
 QString db_table_widget::get_table_name()
@@ -225,34 +238,6 @@ void db_table_widget::add_as_parent_relation_field(const QString &field_name)
 void db_table_widget::add_as_child_relation_field(const QString &field_name)
 {
   pv_as_child_relation_fields << field_name;
-}
-
-bool db_table_widget::add_filter(const QString &field_name, const QString &val)
-{
-  if(!pv_filter.isEmpty()){
-    pv_filter = pv_filter + " AND ";
-  }
-  // Get the field parameters. For this, get the row 0 (If empty, fields info should be aviable)
-  QSqlRecord rec = get_record(0);
-  QSqlField field = rec.field(field_name);
-  // Select the correct SQL operator according to data type.
-  if((field.type() == QVariant::Int)||(field.type() == QVariant::Double)){
-    pv_filter = pv_filter + field_name + "=" + val;
-  }else if(field.type() == QVariant::String){
-    pv_filter = pv_filter + field_name + "='" + val + "' ";
-  }else{
-    std::cerr << "db_table_widget::" << __FUNCTION__ << ": unknow data type. Filter not added" << std::endl;
-    return false;
-  }
-  //std::cout << "db_table_widget::" << __FUNCTION__ << "**-> Filter: " << pv_filter.toStdString().c_str() << std::endl;
-  pv_table_model->setFilter(pv_filter);
-  //pv_table_model->select();
-  return true;
-}
-
-QString db_table_widget::get_filter()
-{
-  return pv_table_model->filter();
 }
 
 void db_table_widget::hide_field(const QString &field_name)
