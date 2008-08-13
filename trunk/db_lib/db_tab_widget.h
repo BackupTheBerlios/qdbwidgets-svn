@@ -43,8 +43,8 @@ class db_tab_widget : public QWidget
  Q_OBJECT
   public:
     db_tab_widget(const QString &name, QWidget *parent = 0);
-    /// Call this init function before any use
-    bool init(const db_connection *cnn, const QString &table_name);
+    /// Set_model - Call this before any use
+    bool set_model(db_relational_model *model);
     void set_selection_model(QItemSelectionModel *model);
     QAbstractItemModel * get_model();
     /// Return number of fields (columns)
@@ -57,28 +57,20 @@ class db_tab_widget : public QWidget
     void select();
     QStringList get_header_data();
     void set_editable(bool editable);
-    /**
-      Relation management:
-        1: Define fileds in the relation, in the parent instance, and in child instance (order is important!)
-        2: connect the signal sig_current_data_changed from parent to slot slot_current_data_changed in child
-    **/
-    /// add a filed to relation - AS parent form
-    void add_as_parent_relation_field(const QString &field_name);
-    /// add a filed to relation - AS child form
-    void add_as_child_relation_field(const QString &field_name);
     /// Hide a field
     void hide_field(const QString &field_name);
 
   signals:
     void sig_current_data_changed(const QStringList &relations_values);
+    void sig_current_row_changed(const QModelIndex& index);
 
   private slots:
     void insert_record();
     void delete_record(int row);
-    void current_data_changed(int row);
-    // AS child instance, this slot recieve needed data for relations...
-    void slot_current_data_changed(const QStringList &relations_values);
-    void as_child_before_insert(QSqlRecord &rec);
+    //void current_data_changed(int row);
+
+    void current_row_changed(int row);
+    //void as_child_before_insert(QSqlRecord &rec);
     bool submit_all(int current_row);
     void revert_all();
 
@@ -90,10 +82,11 @@ class db_tab_widget : public QWidget
     bool is_empty(QSqlRecord &rec);
     QString pv_filter_user_args;
     // List of fields "implqué" in relation, AS parent form
-    QStringList pv_as_parent_relation_fields;
+    //QStringList pv_as_parent_relation_fields;
     // List of fields "implqué" in relation, AS child form
-    QStringList pv_as_child_relation_fields;
-    QStringList pv_as_child_relation_values;
+    //QStringList pv_as_child_relation_fields;
+    //QStringList pv_as_child_relation_values;
+    QLabel *lb_user_table_name;
 };
 
 #endif

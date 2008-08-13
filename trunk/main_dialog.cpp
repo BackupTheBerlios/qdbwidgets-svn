@@ -48,26 +48,33 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_hlayout->addWidget(pb_systablew);
     pv_hlayout->addWidget(pv_sql_cbox);
 
-    pv_tabw = new db_tab_widget("test");
-    if(!pv_tabw->init(cnn, pv_table_name))
-    {
-      std::cerr << "ERREUR\n";
-      return false;
-    }
-    pv_tabw->select();
+    /// Tests
+    pv_model = new db_relational_model(cnn, pv_table_name, 0);
+
     pv_tablew = new db_table_widget("test");
-    pv_tablew->init(cnn, pv_table_name);
+    //pv_tablew->init(cnn, pv_table_name);
+    pv_tablew->set_model(pv_model);
+
+    pv_tabw = new db_tab_widget("test");
+    pv_tabw->set_model(pv_model);
+    //pv_tabw->init(cnn, pv_table_name)
+    //pv_tabw->select();
 
     /// TESTS avec selectionsmodeles
-    pv_selection_model = new QItemSelectionModel(pv_tabw->get_model());
+    pv_selection_model = new QItemSelectionModel(pv_model);
     pv_tablew->set_selection_model(pv_selection_model);
+    //pv_tabw->set_selection_model(pv_selection_model);
 
     pv_form = new db_form("test");
     pv_form->init(cnn, pv_table_name, "address_client");
     pv_searchw = new db_search_widget("test");
     pv_searchw->init(cnn, pv_table_name);
+
+    pv_sys_model = new db_relational_model(cnn, "db_sys_field_name_TBL", 0);
     pv_systable = new db_table_widget("test");
-    pv_systable->init(cnn, "db_sys_field_name_TBL");
+    pv_systable->set_model(pv_sys_model);
+
+    //pv_systable->init(cnn, "db_sys_field_name_TBL");
     pv_sql_cbox->init(cnn);
     pv_sql_cbox->new_query("SELECT id_cli_PK, nom_cli, remarques FROM client_TBL");
     pv_sql_cbox->set_data_field("id_cli_PK");

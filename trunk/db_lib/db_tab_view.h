@@ -41,6 +41,7 @@ class db_tab_view : public QWidget
  public:
   db_tab_view(QWidget *parent = 0);
   void setModel(QAbstractItemModel *model);
+  /// set the selectionModel to update current automatically
   void setSelectionModel(QItemSelectionModel *selectionModel);
   QAbstractItemModel * model();
   void unsetModel();
@@ -51,7 +52,8 @@ class db_tab_view : public QWidget
   /// clear data in the line_edits.
   /// No update will be made in the model !
   void clear_displayed_data();
-  bool revert();
+  /// Set /unset all lineEdits editable
+  void set_all_editable(bool editable);
 
  signals:
   void current_row_changed(int row);
@@ -67,10 +69,13 @@ class db_tab_view : public QWidget
   void index_changed(int row);
   // Detect changes
   void detect_changes(int row);
+  void bofore_model_select();
+  void model_selected();
   void goto_first();
   void goto_previous();
   void goto_next();
   void goto_last();
+  void revert();
   void delete_row();
   void insert_row();
 
@@ -84,8 +89,10 @@ class db_tab_view : public QWidget
   QPushButton *pb_next;
   QPushButton *pb_last;
   QPushButton *pb_save;
+  QPushButton *pb_cancel;
   QPushButton *pb_delete;
   QPushButton *pb_insert;
+  QLabel *lb_nb_rows;
   QHBoxLayout *pv_nav_layout;
   bool pv_new_row;    // Please look at detect-changes() and insert_row()
 };

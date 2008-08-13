@@ -24,6 +24,7 @@
 #include "db_table_widget.h"
 #include "db_tab_widget.h"
 #include "db_query_widget.h"
+#include "db_relational_model.h"
 
 #include <QWidget>
 #include <QString>
@@ -47,6 +48,9 @@ class db_form : public QWidget
   private slots:
 
   private:
+    db_relational_model *pv_model;
+    db_relational_model *pv_child_model;
+    db_relational_model *pv_sub_child_model;
     db_tab_widget *pv_parent;
     //db_table_widget *pv_parent;
     db_table_widget *pv_child;

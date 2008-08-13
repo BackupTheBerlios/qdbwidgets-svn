@@ -23,8 +23,9 @@ db_search_widget::db_search_widget(const QString &name, QWidget *parent)
 bool db_search_widget::init(const db_connection *cnn, const QString &table_name)
 {
   // Table witch display results
+  pv_data_model = new db_relational_model(cnn, table_name, this);
   pv_data_table = new db_table_widget(pv_name, this);
-  pv_data_table->init(cnn, table_name);
+  pv_data_table->set_model(pv_data_model);
   pv_data_table->set_editable(false);
 
   setWindowTitle(table_name);
@@ -55,9 +56,9 @@ bool db_search_widget::init(const db_connection *cnn, const QString &table_name)
   connect(pb_search, SIGNAL(clicked()), this, SLOT(search()));
 
   // TESTS
-  test = new db_table_widget(pv_name, this);
-  test->init(cnn, "address_client");
-  pv_vlayout->addWidget(test);
+  //test = new db_table_widget(pv_name, this);
+  //test->init(cnn, "address_client");
+  //pv_vlayout->addWidget(test);
 }
 
 void db_search_widget::search()

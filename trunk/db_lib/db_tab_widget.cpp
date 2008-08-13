@@ -38,18 +38,23 @@ db_tab_widget::db_tab_widget(const QString &name, QWidget *parent)
     : QWidget(parent)
 {
   pv_table_model = 0;
+
+  // Init layout and arranges labels and texts
+  pv_layout = new QGridLayout(this);
+
+  lb_user_table_name = new QLabel;
+  pv_layout->addWidget(lb_user_table_name);
+
+  setWindowTitle(name);
 }
 
-bool db_tab_widget::init(const db_connection *cnn, const QString &table_name)
+bool db_tab_widget::set_model(db_relational_model *model)
 {
-
-  setWindowTitle(table_name);
-
   // Init the model
-  pv_table_model = new db_relational_model(this, cnn->get_db());
-  pv_table_model->init(cnn, table_name);
+  pv_table_model = model;
   pv_table_model->set_user_headers();
   pv_table_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+  lb_user_table_name->setText(pv_table_model->get_user_table_name());
 
   // Init the view
   pv_tab_view = new db_tab_view(this);
@@ -57,25 +62,35 @@ bool db_tab_widget::init(const db_connection *cnn, const QString &table_name)
   pv_tab_view->display_nav();
   pv_tab_view->set_auto_submit(false);
 
-
-  // Init layout and arranges labels and texts
-  pv_layout = new QGridLayout(this);
   pv_layout->addWidget(pv_tab_view);
 
-  // Signal from tab_view whenn selected (to update child)
+  // Signal from tab_view whenn selected
   connect( pv_tab_view,
     SIGNAL(current_row_changed(int)),
-    this, SLOT(current_data_changed(int)) );
+    this, SLOT(current_row_changed(int)) );
 
+  connect( this,
+    SIGNAL(sig_current_row_changed(const QModelIndex&)),
+    pv_table_model, SLOT(current_row_changed(const QModelIndex&)) );
+
+  //connect( 
+/*
+  connect(myTableView->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
+         mapper, SLOT(setCurrentModelIndex(QModelIndex)));
+*/
+/*
   connect(
     pv_table_model, SIGNAL(beforeInsert(QSqlRecord&)),
     this, SLOT(as_child_before_insert(QSqlRecord&) )
   );
-
+*/
   connect( pv_tab_view, SIGNAL(sig_delete_row(int)), this, SLOT(delete_record(int)));
   connect( pv_tab_view, SIGNAL(sig_insert_row()), this, SLOT(insert_record()));
   connect( pv_tab_view, SIGNAL(sig_submit(int)), this, SLOT(submit_all(int)));
   connect( pv_tab_view, SIGNAL(sig_revert()), this, SLOT(revert_all()));
+
+  pv_table_model->setSort(0, Qt::AscendingOrder);
+  select();
 
   return true;
 }
@@ -92,7 +107,6 @@ QAbstractItemModel * db_tab_widget::get_model()
 
 void db_tab_widget::select()
 {
-  pv_table_model->setSort(0, Qt::AscendingOrder);
   if(!pv_table_model->select()){
     std::cerr << "db_table_widget::" << __FUNCTION__ << ": select() failed" << std::endl;
     std::cerr << pv_table_model->lastError().text().toStdString().c_str() << std::endl;
@@ -104,7 +118,7 @@ int db_tab_widget::field_count()
 {
   return pv_table_model->columnCount();
 }
-
+/*
 // Recieve from tab_view, and emit to slot_current_data_changed - AS parent
 void db_tab_widget::current_data_changed(int row)
 {
@@ -114,7 +128,8 @@ void db_tab_widget::current_data_changed(int row)
     QStringList relations_values;
     int i=0;
     for(i=0; i<pv_as_parent_relation_fields.count(); i++){
-      relations_values << rec.value(i).toString();
+      std::cout << "Field: " << pv_as_parent_relation_fields.at(i).toStdString() << std::endl;
+      relations_values << rec.value(pv_as_parent_relation_fields.at(i)).toString();
     }
     // Emit to child
     emit sig_current_data_changed(relations_values);
@@ -122,40 +137,36 @@ void db_tab_widget::current_data_changed(int row)
     QStringList relations_values;
     int i=0;
     for(i=0; i<pv_as_parent_relation_fields.count(); i++){
+      std::cout << "Field: " << pv_as_parent_relation_fields.at(i).toStdString() << std::endl;
       relations_values << "-1";
     }
     // Emit to child
     emit sig_current_data_changed(relations_values);
   }
 }
-
-// AS child, recieve data_changed signal FROM parent
-void db_tab_widget::slot_current_data_changed(const QStringList &relations_values)
+*/
+void db_tab_widget::current_row_changed(int row)
 {
-  pv_table_model->clear_filter();
-  pv_as_child_relation_values = relations_values;
-  // For each field, add criteria to the filter
-  int i=0;
-  for(i=0; i<pv_as_child_relation_values.count(); i++){
-    if(!pv_table_model->add_filter(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i))){
-      std::cerr << "db_tab_widget::" << __FUNCTION__ << ": relation criteria failed" << std::endl;
-    }
-  }
-  select();
+  QModelIndex index = pv_table_model->create_index(row, 0);
+  emit sig_current_row_changed(index);
 }
-
+/*
 void db_tab_widget::as_child_before_insert(QSqlRecord &rec)
 {
+  std::cout << "db_TAB_widget::as_child_before_insert() Call.." << std::endl;
   int i=0;
   for(i=0; i<pv_as_child_relation_values.count(); i++){
     rec.setValue(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i));
   }
 }
-
+*/
 bool db_tab_widget::submit_all(int current_row)
 {
+  QString msg;
   if(!pv_table_model->submitAll()){
-    QMessageBox::critical(this, tr("TITRE"), tr("Unable to save data"));
+    msg = tr("Unable to save data\n");
+    msg += pv_table_model->lastError().text();
+    QMessageBox::critical(this, tr("TITRE"), msg);
     return false;
   }
   select();
@@ -193,16 +204,6 @@ void db_tab_widget::set_editable(bool editable)
   pv_is_editable = editable;
 }
 
-void db_tab_widget::add_as_parent_relation_field(const QString &field_name)
-{
-  pv_as_parent_relation_fields << field_name;
-}
-
-void db_tab_widget::add_as_child_relation_field(const QString &field_name)
-{
-  pv_as_child_relation_fields << field_name;
-}
-
 void db_tab_widget::hide_field(const QString &field_name)
 {
   int index = pv_table_model->fieldIndex(field_name);
@@ -213,9 +214,18 @@ void db_tab_widget::hide_field(const QString &field_name)
 
 void db_tab_widget::delete_record(int row)
 {
-  pv_table_model->removeRow(row);
+  QString msg;
+  if(!pv_table_model->delete_row(row)){
+        msg = tr("Delete failed\n\nReported error:\n");
+        msg += pv_table_model->lastError().text();
+        QMessageBox err_box(QMessageBox::Critical, pv_table_model->get_user_table_name(), msg, QMessageBox::Ok);
+        err_box.exec();
+  }
   if(!pv_table_model->submitAll()){
-    QMessageBox::critical(this, tr("TITRE"), tr("Unable to delete record"));
+        msg = tr("Delete failed\n\nReported error:\n");
+        msg += pv_table_model->lastError().text();
+        QMessageBox err_box(QMessageBox::Critical, pv_table_model->get_user_table_name(), msg, QMessageBox::Ok);
+        err_box.exec();
   }
   pv_tab_view->goto_first();
   pv_tab_view->goto_row(row - 1);

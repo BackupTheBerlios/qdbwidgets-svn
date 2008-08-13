@@ -37,36 +37,37 @@
 #include <QMessageBox>
 #include <QPoint>
 #include <QItemSelectionModel>
+#include <QLabel>
 
 db_table_widget::db_table_widget(const QString &name, QWidget *parent)
     : QWidget(parent)
 {
   pv_table_model = 0;
   pv_table_view = 0;
-}
 
-bool db_table_widget::init(const db_connection *cnn, const QString &table_name)
-{
   pv_layout = new QVBoxLayout(this);
   pv_hlayout = new QHBoxLayout(this);
 
-  setWindowTitle(table_name);
+  lb_user_table_name = new QLabel;
+  pv_layout->addWidget(lb_user_table_name);
 
-  // Init the model
-  pv_table_model = new db_relational_model(this, cnn->get_db());
-  pv_table_model->init(cnn, table_name);
+  setWindowTitle(name);
+}
+
+bool db_table_widget::set_model(db_relational_model *model)
+{
+  pv_table_model = model;
   pv_table_model->set_user_headers();
-
-  //pv_FKs = new QSqlIndex();
-
+  lb_user_table_name->setText(pv_table_model->get_user_table_name());
   // Init the view
   pv_table_view = new QTableView(this);
   pv_table_view->setModel(pv_table_model);
   pv_table_view->setSelectionMode(QAbstractItemView::SingleSelection);
   pv_table_view->setSelectionBehavior(QAbstractItemView::SelectItems);
-  pv_table_view->resizeColumnsToContents();
   pv_table_view->setSortingEnabled(true);
   pv_table_view->sortByColumn(0, Qt::AscendingOrder);
+  pv_table_view->resizeColumnsToContents();
+  pv_table_view->resizeRowsToContents();
 
   pv_layout->addWidget(pv_table_view);
 
@@ -82,95 +83,75 @@ bool db_table_widget::init(const db_connection *cnn, const QString &table_name)
   // Signal from tableView whenn seleted (to update child)
   connect( pv_table_view->selectionModel(),
     SIGNAL(currentRowChanged(const QModelIndex&, const QModelIndex&)),
-    this, SLOT(current_data_changed(const QModelIndex&)) );
-  connect(
-    pv_table_model, SIGNAL(beforeInsert(QSqlRecord&)),
-    this, SLOT(as_child_before_insert(QSqlRecord&) )
-  );
+    pv_table_model, SLOT(current_row_changed(const QModelIndex&)) );
+
+  connect(pv_table_model,
+    SIGNAL(modelReset()),
+    this, SLOT(model_reset()) );
+
+  connect(pv_table_model,
+    SIGNAL(sig_select_called()),
+    this, SLOT(model_reset()) );
 
   return true;
 }
 
-void db_table_widget::set_selection_model(QItemSelectionModel *model)
+void db_table_widget::model_reset()
 {
-  pv_table_view->setSelectionModel(model);
+  pv_table_view->resizeRowsToContents();
 }
 
-QAbstractItemModel * db_table_widget::get_model()
+void db_table_widget::set_selection_model(QItemSelectionModel *model)
 {
-  return pv_table_view->model();
+  disconnect( pv_table_view->selectionModel(),
+    SIGNAL(currentRowChanged(const QModelIndex&, const QModelIndex&)),
+    pv_table_model, SLOT(current_row_changed(const QModelIndex&)) );
+
+  pv_table_view->setSelectionModel(model);
+
+  connect( pv_table_view->selectionModel(),
+    SIGNAL(currentRowChanged(const QModelIndex&, const QModelIndex&)),
+    pv_table_model, SLOT(current_row_changed(const QModelIndex&)) );
+}
+
+db_relational_model *db_table_widget::model()
+{
+  return pv_table_model;
 }
 
 void db_table_widget::insert_record()
 {
+  QString msg;
   int row = 0;
-  pv_table_model->insertRows(row, 1);
+  if(pv_table_model->has_parent_model()){
+    if(!pv_table_model->parent_has_row()){
+      return;
+    }
+  }
+  if(!pv_table_model->insertRow(row)){
+    msg = tr("Insertion failed");
+    QMessageBox msgbox(QMessageBox::Critical, pv_table_model->get_user_table_name(), msg);
+  }
 }
 
 void db_table_widget::delete_record()
 {
+  QString msg;
   QModelIndex index = pv_table_view->currentIndex();
   if(index.isValid()){
-    QMessageBox msgbox(QMessageBox::Warning, tr("Delete one row"), tr("Do you really want to delete selected item ?"), QMessageBox::Ok | QMessageBox::Cancel);
+    msg =  tr("Delete selected item ?");
+    QMessageBox msgbox(QMessageBox::Warning, pv_table_model->get_user_table_name(), msg, QMessageBox::Ok | QMessageBox::Cancel);
     int rep = msgbox.exec();
     if(rep == QMessageBox::Ok){
       int row = index.row();
-      if(!pv_table_model->removeRow(row)){
-        QMessageBox err_box(QMessageBox::Critical, tr("Delete failed"), tr("Delete failed"), QMessageBox::Ok);
+      if(!pv_table_model->delete_row(row)){
+        msg = tr("Delete failed\n\nReported error:\n");
+        msg += pv_table_model->lastError().text();
+        QMessageBox err_box(QMessageBox::Critical, pv_table_model->get_user_table_name(), msg, QMessageBox::Ok);
+        err_box.exec();
       }
     }
   }
-}
-
-// Recieve from TableView, and emit to slot_current_data_changed - AS parent
-void db_table_widget::current_data_changed(const QModelIndex &index)
-{
-  if(index.isValid()){
-    // Data as parent
-    QSqlRecord rec = pv_table_model->record(index.row());
-    QStringList relations_values;
-    int i=0;
-    for(i=0; i<pv_as_parent_relation_fields.count(); i++){
-      relations_values << rec.value(i).toString();
-    }
-    // Emit to child
-    emit sig_current_data_changed(relations_values);
-  }else{
-    QStringList relations_values;
-    int i=0;
-    for(i=0; i<pv_as_parent_relation_fields.count(); i++){
-      relations_values << "-1";
-    }
-    // Emit to child
-    emit sig_current_data_changed(relations_values);
-  }
-}
-
-void db_table_widget::as_child_before_insert(QSqlRecord &rec)
-{
-  int i=0;
-  for(i=0; i<pv_as_child_relation_values.count(); i++){
-    rec.setValue(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i));
-  }
-}
-
-// AS child, recieve data_changed signal FROM parent
-void db_table_widget::slot_current_data_changed(const QStringList &relations_values)
-{
-  pv_table_model->clear_filter();
-  pv_as_child_relation_values = relations_values;
-  // For each field, add criteria to the filter
-  int i=0;
-  for(i=0; i<pv_as_child_relation_values.count(); i++){
-    if(!pv_table_model->add_filter(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i))){
-      std::cerr << "db_table_widget::" << __FUNCTION__ << ": relation criteria failed" << std::endl;
-    }
-  }
-  select();
-  // We can have another child. So we act as parent of this other child
-  // So, we select the first row, then take the index. If valid, emit signal
-  QModelIndex index = pv_table_view->indexAt(QPoint(0,0));
-  emit current_data_changed(index);
 }
 
 void db_table_widget::select()
@@ -179,6 +160,8 @@ void db_table_widget::select()
     std::cerr << "db_table_widget::" << __FUNCTION__ << ": select() failed" << std::endl;
     std::cerr << pv_table_model->lastError().text().toStdString().c_str() << std::endl;
   }
+  pv_table_view->resizeColumnsToContents();
+  pv_table_view->resizeRowsToContents();
 }
 
 void db_table_widget::set_editable(bool editable)
@@ -213,31 +196,6 @@ QStringList db_table_widget::get_header_data()
     headers << pv_table_model->headerData(i , Qt::Horizontal).toString();
   }
   return headers;
-}
-
-QList<QVariant> db_table_widget::get_PKs()
-{
-  QModelIndex index;
-  index = pv_table_view->currentIndex();
-  int i;
-  QList<QVariant> PKs_list;
-  QVariant var;
-  // get the list of primary keys
-  for(i=0; i<pv_table_model->primaryKey().count(); i++){
-    var = pv_table_model->primaryKey().field(i).name();
-    PKs_list << var;
-  }
-  return PKs_list;
-}
-
-void db_table_widget::add_as_parent_relation_field(const QString &field_name)
-{
-  pv_as_parent_relation_fields << field_name;
-}
-
-void db_table_widget::add_as_child_relation_field(const QString &field_name)
-{
-  pv_as_child_relation_fields << field_name;
 }
 
 void db_table_widget::hide_field(const QString &field_name)

@@ -29,6 +29,7 @@
 #include "db_lib/db_query_widget.h"
 #include "db_lib/db_connection.h"
 #include "db_lib/db_sql_combobox.h"
+#include "db_lib/db_relational_model.h"
 
 #include <QWidget>
 #include <QDialog>
@@ -56,6 +57,8 @@ class main_dialog : public QDialog
     void display_text(const QString& txt);
 
   private:
+    db_relational_model *pv_model;
+    db_relational_model *pv_sys_model;
     db_tab_widget *pv_tabw;
     db_table_widget *pv_tablew;
     db_form *pv_form;

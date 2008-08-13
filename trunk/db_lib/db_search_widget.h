@@ -2,6 +2,7 @@
 #define DB_SEARCH_WIDGET_H
 
 #include "db_table_widget.h"
+#include "db_relational_model.h"
 
 #include <QWidget>
 #include <QString>
@@ -24,6 +25,7 @@ class db_search_widget : public QWidget
     void search();
 
   private:
+    db_relational_model *pv_data_model;
     QVBoxLayout *pv_vlayout;
     QHBoxLayout *pv_hlayout;
     QTableWidget *pv_search_table;

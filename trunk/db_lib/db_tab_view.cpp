@@ -25,6 +25,7 @@
 #include <QHBoxLayout>
 #include <QAbstractItemModel>
 #include <QItemSelectionModel>
+#include <QSqlRelationalDelegate>
 #include <QPushButton>
 #include <QModelIndex>
 #include <QMessageBox>
@@ -36,9 +37,11 @@ db_tab_view::db_tab_view(QWidget *parent)
   pb_previous = 0;
   pb_next = 0;
   pb_last = 0;
+  pb_cancel = 0;
   pb_save = 0;
   pb_delete = 0;
   pb_insert = 0;
+  lb_nb_rows = 0;
   pv_nav_layout = 0;
   pv_new_row = false;
   pv_mapper = new QDataWidgetMapper;
@@ -48,11 +51,34 @@ db_tab_view::db_tab_view(QWidget *parent)
   connect(this, SIGNAL(before_row_changed(int)), this, SLOT(detect_changes(int)));
 }
 
+void db_tab_view::bofore_model_select()
+{
+  detect_changes(pv_mapper->currentIndex());
+  //goto_first();
+}
+
+void db_tab_view::model_selected()
+{
+  //std::cout << "db_tab_view::model_selected: rows: " << pv_mapper->model()->rowCount() << std::endl;
+  if(lb_nb_rows != 0){
+    QString txt = tr("Rows: ");
+    QString row;
+    //row.setNum(pv_mapper->currentIndex());
+    //txt += row;
+    //txt += tr(" of ");
+    row.setNum(pv_mapper->model()->rowCount());
+    txt += row;
+    lb_nb_rows->setText(txt);
+  }
+  goto_row(0);
+}
+
 void db_tab_view::setModel(QAbstractItemModel *model)
 {
   int col=0;
   unsetModel();
   pv_mapper->setModel(model);
+  pv_mapper->setItemDelegate(new QSqlRelationalDelegate(pv_mapper));
 
   for(col=0; col < model->columnCount(); col++){
     pv_label_list.append(new QLabel);
@@ -62,7 +88,9 @@ void db_tab_view::setModel(QAbstractItemModel *model)
     pv_layout->addWidget(pv_edit_list.at(col));
     pv_mapper->addMapping(pv_edit_list.at(col), col);
   }
-  pv_mapper->toFirst();
+  connect(model, SIGNAL(sig_before_select()), this, SLOT(bofore_model_select()) );
+  connect(model, SIGNAL(sig_select_called()), this, SLOT(model_selected()) );
+  //pv_mapper->toFirst();
 }
 
 void db_tab_view::unsetModel()
@@ -111,6 +139,11 @@ void db_tab_view::display_nav()
     pv_nav_layout->addWidget(pb_last);
     connect(pb_last, SIGNAL(clicked()), this, SLOT(goto_last()));
   }
+  if(pb_cancel == 0){
+    pb_cancel = new QPushButton(tr("Cancel"));
+    pv_nav_layout->addWidget(pb_cancel);
+    connect(pb_cancel, SIGNAL(clicked()), this, SLOT(revert()));
+  }
   if(pb_save == 0){
     pb_save = new QPushButton(tr("Save"));
     pv_nav_layout->addWidget(pb_save);
@@ -126,7 +159,10 @@ void db_tab_view::display_nav()
     pv_nav_layout->addWidget(pb_insert);
     connect(pb_insert, SIGNAL(clicked()), this, SLOT(insert_row()));
   }
-
+  if(lb_nb_rows == 0){
+    lb_nb_rows = new QLabel(tr("Rows: "));
+    pv_nav_layout->addWidget(lb_nb_rows);
+  }
 }
 
 void db_tab_view::set_auto_submit(bool auto_submit)
@@ -140,7 +176,14 @@ void db_tab_view::set_auto_submit(bool auto_submit)
 
 void db_tab_view::goto_row(int row)
 {
-  pv_mapper->setCurrentIndex(row);
+  if(pv_mapper->model()->index(row, 0).isValid()) {
+    pv_mapper->setCurrentIndex(row);
+    set_all_editable(true);
+  }else{
+    std::cerr << "db_tab_view::goto_row: invalid index in model" << std::endl;
+    set_all_editable(false);
+    clear_displayed_data();
+  }
 }
 
 void db_tab_view::clear_displayed_data()
@@ -148,6 +191,18 @@ void db_tab_view::clear_displayed_data()
   int i=0;
   for(i=0; i<pv_edit_list.count(); i++){
     pv_edit_list.at(i)->setText("");
+  }
+}
+
+void db_tab_view::set_all_editable(bool editable)
+{
+  int i=0;
+  for(i=0; i<pv_edit_list.count(); i++){
+    if(editable){
+      pv_edit_list.at(i)->setReadOnly(false);
+    }else{
+      pv_edit_list.at(i)->setReadOnly(true);
+    }
   }
 }
 
@@ -162,14 +217,18 @@ bool db_tab_view::submit()
   return true;
 }
 
-bool db_tab_view::revert()
+void db_tab_view::revert()
 {
   pv_new_row = false;
+  pv_mapper->revert();
   emit sig_revert();
 }
 
 void db_tab_view::index_changed(int row)
 {
+  if(pv_mapper->submitPolicy() == QDataWidgetMapper::ManualSubmit){
+    //detect_changes(row);
+  }
   emit current_row_changed(row);
 }
 
@@ -203,6 +262,7 @@ void db_tab_view::detect_changes(int row)
   QString str1, str2;
   // Run only if the auto submit is unactive
   if(pv_mapper->submitPolicy() == QDataWidgetMapper::ManualSubmit){
+    //std::cout << "Detect changes, row: " << row << std::endl;
     if(pv_new_row){
       // Just make diff
       str1 = "Null";
@@ -212,16 +272,21 @@ void db_tab_view::detect_changes(int row)
         if(index.isValid()){
           str1 = pv_edit_list.at(i)->text();
           str2 = pv_mapper->model()->data(index).toString();
+          //std::cout << "Detect changes, str1: " << str1.toStdString() << std::endl;
+          //std::cout << "Detect changes, str2: " << str2.toStdString() << std::endl;
+          if(str1 != str2){
+            std::cout << "Detect changes: Diff" << std::endl;
+            ret = QMessageBox::question(this, tr("Nom à mettre"), tr("Would you like to save changes ?"),
+              QMessageBox::Save | QMessageBox::Cancel );
+            if(ret == QMessageBox::Save){
+              submit();
+              return;
+            }else{
+              revert();
+              return;
+            }
+          }
         }
-      }
-    }
-    if(str1 != str2){
-      ret = QMessageBox::question(this, tr("Nom à mettre"), tr("Would you like to save changes ?"),
-        QMessageBox::Save | QMessageBox::Cancel );
-      if(ret == QMessageBox::Save){
-        submit();
-      }else{
-        revert();
       }
     }
   }
