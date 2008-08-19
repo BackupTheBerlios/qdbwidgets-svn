@@ -1,6 +1,6 @@
 /***************************************************************************
- *   Copyright (C) 2007 by Philippe   *
- *   nel230@gmail.ch   *
+ *   Copyright (C) 2008 by Philippe   *
+ *   nel230@gmail.com   *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -27,15 +27,32 @@
 
 db_connection::db_connection(const QString &type, const QString &name)
 {
-  pv_cnn_name = name;
-  pv_db = QSqlDatabase::addDatabase(type, name);
-  pv_db_driver = type;
-  std::cout << "Added database, type: " << type.toStdString().c_str() << ", name: " << name.toStdString().c_str() << std::endl;
+  set_db_driver(type, name);
+}
+
+db_connection::db_connection()
+{
 }
 
 db_connection::~db_connection()
 {
   close_connection();
+}
+
+bool db_connection::set_db_driver(const QString &type, const QString &name)
+{
+  pv_cnn_name = name;
+  if(pv_db.isOpen()){
+    close_connection();
+  }
+  pv_db = QSqlDatabase::addDatabase(type, name);
+  pv_db_driver = type;
+  if(!pv_db.isValid()){
+    std::cerr << "db_connection::" << __FUNCTION__ << ": Cannot add database, type: " << type.toStdString() << 
+      " , name: " << name.toStdString() << std::endl;
+    return false;
+  }
+  return true;
 }
 
 bool db_connection::set_host_name(const QString &host_name)
@@ -46,6 +63,24 @@ bool db_connection::set_host_name(const QString &host_name)
   }
   pv_db.setHostName(host_name);
   pv_host_name = host_name;
+  return true;
+}
+
+bool db_connection::set_port(const QString &port)
+{
+  int i_port = 0;
+  bool conv_ok = false;
+  if(pv_db_driver == "QSQLITE"){
+	std::cout << "port ignored with QSQLITE driver\n";
+	return false;
+  }
+  // Convert string to int
+  i_port = port.toInt(&conv_ok, 10);
+  if(!conv_ok){
+    std::cerr << "db_connection::" << __FUNCTION__ << ": convertion of port to int failed: given string: " << port.toStdString() << std::endl;
+    return false;
+  }
+  pv_db.setPort(i_port);
   return true;
 }
 
@@ -69,32 +104,78 @@ bool db_connection::set_connection()
 	std::cerr << "Connection failed: " << pv_db.lastError().text().toStdString().c_str() << std::endl;
 	return false;
   }
+  if(!pv_db.isOpen()){
+	std::cerr << "Connection failed: " << pv_db.lastError().text().toStdString().c_str() << std::endl;
+	return false;
+  }
+  if(pv_db.isOpenError()){
+	std::cerr << "Connection failed: " << pv_db.lastError().text().toStdString().c_str() << std::endl;
+	return false;
+  }
   return true;
+}
+
+bool db_connection::is_open() const
+{
+  return pv_db.isOpen();
 }
 
 void db_connection::close_connection()
 {
+  if(!pv_db.isOpen()){
+    return;
+  }
   if(!pv_db.commit()){
     std::cerr << "db_connection::" << __FUNCTION__ << ": commit failed" << std::endl;
     std::cerr << "db_connection::" << __FUNCTION__ << ": Error: " << pv_db.lastError().text().toStdString().c_str() << std::endl;
   }
-  std::cerr << "db_connection::" << __FUNCTION__ << ": closing connection name: " << pv_db_name.toStdString().c_str() << std::endl;
+  std::cerr << "db_connection::" << __FUNCTION__ << ": closing connection name: " << pv_cnn_name.toStdString() << std::endl;
+  QSqlDatabase::removeDatabase(pv_cnn_name);
+  pv_databases.clear();
   pv_db.close();
 }
 
 QString db_connection::last_error() const
 {
-	return pv_db.lastError().text();
+  return pv_db.lastError().text();
 }
 
 QSqlDatabase db_connection::get_db() const
 {
-	return pv_db;
+  return pv_db;
 }
 
 QString db_connection::get_cnn_name() const
 {
-	return pv_cnn_name;
+  return pv_cnn_name;
+}
+
+QStringList db_connection::get_tables() const
+{
+  return pv_db.tables();
+}
+
+QStringList db_connection::get_databases() const
+{
+  list_databases();
+  return pv_databases;
+}
+
+bool db_connection::list_databases()
+{
+  QString SQL;
+  SQL = "SHOW DATABASES;";
+  QSqlQuery query(pv_db);
+  if(!query.exec(SQL)){
+    std::cerr << "db_connection::" << __FUNCTION__ << ": SHOW DATABASES; query failed" << std::endl;
+    std::cerr << pv_db.lastError().text().toStdString().c_str() << std::endl;
+    return false;
+  }
+  while(query.next()){
+    QString data = query.value(0).toString();
+    pv_databases << data;
+  }
+  return true;
 }
 
 bool db_connection::create_test_tables()

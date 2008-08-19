@@ -23,29 +23,39 @@
 
 #include <QSqlDatabase>
 #include <QString>
+#include <QStringList>
 
 class db_connection
 {
-  public:
-	db_connection(const QString &type, const QString &name);
-        ~db_connection();
-	bool set_host_name(const QString &host_name);
-	bool set_db_name(const QString &db_name);
-	bool set_login(const QString &user, const QString &password);
-	bool set_connection();
-        void close_connection();
-	QString last_error() const;	// Return the last error from QSqlDatabe instance (pv_db)
-	bool create_test_tables();
-	QSqlDatabase get_db() const;	// Return the instance of a QSqlDatabase (connection)
-	QString get_cnn_name() const ;
+ public:
+  db_connection(const QString &type, const QString &name);
+  db_connection();
+  ~db_connection();
+  bool set_db_driver(const QString &type, const QString &name);
+  bool set_host_name(const QString &host_name);
+  bool set_port(const QString &port);
+  bool set_db_name(const QString &db_name);
+  bool set_login(const QString &user, const QString &password);
+  bool set_connection();
+  // Return true if db is open
+  bool is_open() const;
+  void close_connection();
+  QString last_error() const;	// Return the last error from QSqlDatabe instance (pv_db)
+  bool create_test_tables();
+  QSqlDatabase get_db() const;	// Return the instance of a QSqlDatabase (connection)
+  QString get_cnn_name() const ;
+  QStringList get_databases() const;
+  QStringList get_tables() const;
 
-  private:
-	// Connexion variables
-	QSqlDatabase pv_db;
-	QString pv_db_driver;
-	QString pv_host_name;
-	QString pv_db_name;
-	QString pv_cnn_name;	// Name of the connection (passed to QSqlDatabase::addDatabase(type, name)
+ private:
+  // Connexion variables
+  QSqlDatabase pv_db;
+  QString pv_db_driver;
+  QString pv_host_name;
+  QString pv_db_name;
+  QString pv_cnn_name;	// Name of the connection (passed to QSqlDatabase::addDatabase(type, name)
+  bool list_databases();
+  QStringList pv_databases;
 };
 
 #endif

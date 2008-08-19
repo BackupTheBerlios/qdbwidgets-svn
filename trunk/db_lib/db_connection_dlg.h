@@ -18,44 +18,81 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
-#ifndef DB_SEARCH_WIDGET_H
-#define DB_SEARCH_WIDGET_H
+#ifndef DB_CONNECTION_DLG_H
+#define DB_CONNECTION_DLG_H
 
-#include "db_table_widget.h"
-#include "db_relational_model.h"
-
+#include <QDialog>
 #include <QWidget>
 #include <QString>
 
-class QTableWidget;
+#include "db_connection.h"
+
+class QComboBox;
 class QVBoxLayout;
 class QHBoxLayout;
-class QPushButton;
-class QLineEdit;
 class QLabel;
+class QLineEdit;
+class QPushButton;
 
-class db_search_widget : public QWidget
+class db_connection_dlg : public QDialog
 {
-  Q_OBJECT
-  public:
-    db_search_widget(const QString &name, QWidget *parent = 0);
-    bool init(const db_connection *cnn, const QString &table_name);
+ Q_OBJECT
 
-  private slots:
-    void search();
+ public:
+  db_connection_dlg(const QString & name, QWidget *parent = 0);
+  ~db_connection_dlg();
+  db_connection *get_dbc() const;
 
-  private:
-    db_relational_model *pv_data_model;
-    QVBoxLayout *pv_vlayout;
-    QHBoxLayout *pv_hlayout;
-    QTableWidget *pv_search_table;
-    db_table_widget *pv_data_table;
-    QString pv_name;
-    QPushButton *pb_search;
-    QLabel *lb_sql;
+ private slots:
+  void db_choosed(const QString &text);
+  void select_file();
+  void connect_db();
+  void disconnect_db();
+  void list_tables();
+  void use_db();
+  void ok();
+  void cancel();
 
-    // TESTS
-    db_table_widget *test;
+ private:
+  void set_sqlite_layout();
+  void set_mysql_layout();
+
+  QHBoxLayout *pv_hmain_layout;
+  QVBoxLayout *pv_vleft_layout;
+  QVBoxLayout *pv_vright_layout;
+  QLabel *lb_db_driver;
+  QComboBox *cb_db_driver;
+  QLabel *lb_db;
+  QComboBox *cb_db;
+  // file db (QSQLITE)
+  QHBoxLayout *pv_dbfile_layout;
+  QLabel *lb_db_file;
+  QLineEdit *le_db_file;
+  QPushButton *pb_db_file;
+  // Host
+  QLabel *lb_host;
+  QLineEdit *le_host;
+  QLabel *lb_port;
+  QLineEdit *le_port;
+  QLabel *lb_user;
+  QLineEdit *le_user;
+  QLabel *lb_pass;
+  QLineEdit *le_pass;
+  // Connect
+  QPushButton *pb_connect;
+  db_connection *pv_dbc;
+  QLabel *lb_connect_status;
+  QLabel *lb_msg;
+  // Disonnect
+  QPushButton *pb_disconnect;
+  // List tables
+  QPushButton *pb_list_tables;
+  QComboBox *cb_tables;
+  // Db to use
+  QPushButton *pb_use_db;
+  // Ok / cancel
+  QPushButton *pb_ok;
+  QPushButton *pb_cancel;
 };
 
 #endif
