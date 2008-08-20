@@ -39,6 +39,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pb_searchw = new QPushButton(tr("Search"));
     pb_queryw = new QPushButton(tr("SQL query"));
     pb_systablew = new QPushButton(tr("Edit field names"));
+    pb_tests = new QPushButton(tr("Tests"));
     pv_sql_cbox = new db_sql_combobox(tr("SQL list"));
     pv_hlayout->addWidget(pb_tabw);
     pv_hlayout->addWidget(pb_tablew);
@@ -46,6 +47,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_hlayout->addWidget(pb_searchw);
     pv_hlayout->addWidget(pb_queryw);
     pv_hlayout->addWidget(pb_systablew);
+    pv_hlayout->addWidget(pb_tests);
     pv_hlayout->addWidget(pv_sql_cbox);
 
     /// Tests
@@ -84,12 +86,17 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_queryw = new db_query_widget("test");
     pv_queryw->init(cnn, "SELECT * FROM " + pv_table_name + "; ");
 
+    // Tests html
+    pv_html = new db_html_engine;
+    pv_html->set_model(pv_model);
+
     connect(pb_tabw, SIGNAL(clicked()), this, SLOT(open_tab()));
     connect(pb_tablew, SIGNAL(clicked()), this, SLOT(open_table()));
     connect(pb_form, SIGNAL(clicked()), this, SLOT(open_form()));
     connect(pb_searchw, SIGNAL(clicked()), this, SLOT(open_search()));
     connect(pb_queryw, SIGNAL(clicked()), this, SLOT(open_query()));
     connect(pb_systablew, SIGNAL(clicked()), this, SLOT(open_systable()));
+    connect(pb_tests, SIGNAL(clicked()), this, SLOT(tests()));
 
     connect(
       pv_sql_cbox, SIGNAL(sig_data(const QString&)), this, SLOT(display_text(const QString&))
@@ -132,4 +139,9 @@ void main_dialog::open_query()
 void main_dialog::open_systable()
 {
   pv_systable->show();
+}
+
+void main_dialog::tests()
+{
+
 }

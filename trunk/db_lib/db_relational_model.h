@@ -85,6 +85,8 @@ class db_relational_model : public QSqlRelationalTableModel
   bool has_child_model();
   bool has_parent_model(); // FIXME: realy not proper implemented !
   QModelIndex create_index(int row, int column);
+  int row_count();
+  QString get_text_data(int row, int column);
 
  public slots:
   // Recieve row change signal from view (or view's selectionModel)

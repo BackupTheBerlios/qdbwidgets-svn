@@ -30,6 +30,7 @@
 #include "db_lib/db_connection.h"
 #include "db_lib/db_sql_combobox.h"
 #include "db_lib/db_relational_model.h"
+#include "db_lib/db_html_engine.h"
 
 #include <QWidget>
 #include <QDialog>
@@ -54,6 +55,7 @@ class main_dialog : public QDialog
     void open_tab();
     void open_query();
     void open_systable();
+    void tests();
     void display_text(const QString& txt);
 
   private:
@@ -66,6 +68,7 @@ class main_dialog : public QDialog
     db_query_widget *pv_queryw;
     db_table_widget *pv_systable;
     db_sql_combobox *pv_sql_cbox;
+    db_html_engine *pv_html;
     QString pv_table_name;
     QPushButton *pb_tabw;
     QPushButton *pb_tablew;
@@ -73,6 +76,7 @@ class main_dialog : public QDialog
     QPushButton *pb_searchw;
     QPushButton *pb_queryw;
     QPushButton *pb_systablew;
+    QPushButton *pb_tests;
     QHBoxLayout *pv_hlayout;
 
     QItemSelectionModel *pv_selection_model;

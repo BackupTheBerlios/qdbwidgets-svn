@@ -367,6 +367,18 @@ void db_relational_model::before_insert(QSqlRecord &rec)
     rec.setValue(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i));
   }
 }
+
+int db_relational_model::row_count()
+{
+  return rowCount();
+}
+
+QString db_relational_model::get_text_data(int row, int column)
+{
+  QModelIndex index = createIndex(row, column);
+  return data(index).toString();
+}
+
 /*
 void db_relational_model::prime_insert(int row, QSqlRecord & record)
 {
