@@ -40,8 +40,11 @@ bool db_form::init(const db_connection *cnn, const QString &parent_table_name, c
 
   /// Models
   pv_model = new db_relational_model(cnn, "client_TBL",this);
+  pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
   pv_child_model = new db_relational_model(cnn, "address_client",this);
+  pv_child_model->setEditStrategy(QSqlTableModel::OnRowChange);
   pv_sub_child_model = new db_relational_model(cnn, "detail_adresse_cli",this);
+  pv_sub_child_model->setEditStrategy(QSqlTableModel::OnRowChange);
 
   pv_model->set_child_model(pv_child_model);
   pv_child_model->set_child_model(pv_sub_child_model);

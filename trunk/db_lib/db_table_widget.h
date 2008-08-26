@@ -39,6 +39,10 @@ class QItemSelectionModel;
 class QAbstractItemModel;
 class QLabel;
 
+/// Note: with this widget, the model's edit strategy should be set to: OnRowChange
+/// Use: model->setEditStrategy(QSqlTableModel::OnRowChange); for this
+
+
 class db_table_widget : public QWidget
 {
  Q_OBJECT
@@ -74,6 +78,8 @@ class db_table_widget : public QWidget
     QHBoxLayout *pv_hlayout;
     QPushButton *pb_insert;
     QPushButton *pb_delete;
+    //QPushButton *pb_save;
+    //QPushButton *pb_cancel;
     QLabel *lb_user_table_name;
 };
 

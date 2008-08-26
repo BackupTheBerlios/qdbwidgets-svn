@@ -27,19 +27,31 @@
 #include <QStringList>
 //#include <
 
+class QFile;
+class QTextEdit;
+class QTextDocument;
+
 class db_html_engine
 {
  public:
   db_html_engine();
   bool set_model(const db_relational_model *model);
+  QString get_column_view(int row = -1, bool with_headers = true, bool in_child = false);
+  QString get_tab_view(int row = -1, bool with_headers = true, bool in_child = false);
+  QString get_parent_child_view(int row = -1, bool with_headers = true);
   void tests();
 
  private:
-  QString get_header(int column);
-  QString get_data(int row, int column);
-  QString get_column_view();
+  QString get_header(int column, bool in_child = false);
+  QString get_data(int row, int column, bool in_child = false);
   db_relational_model *pv_model;
+  db_relational_model *pv_child_model;
   QStringList pv_headers;
+  QStringList pv_child_headers;
+  bool write_file(QString path, QString txt);
+  // tests
+  QTextEdit *pv_txt_edit;
+  QTextDocument *pv_doc;
 };
 
 #endif

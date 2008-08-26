@@ -197,7 +197,7 @@ int db_field_label::row_count(const QString SQL)
   int i=0;
   while(pv_rc_query->next()){
 	i++;
-        std::cout << "ROWS\n";
+        //std::cout << "ROWS\n";
   }
   return i;
 }

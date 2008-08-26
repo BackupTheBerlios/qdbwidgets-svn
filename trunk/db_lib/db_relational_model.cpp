@@ -20,9 +20,12 @@
 
 #include "db_relational_model.h"
 #include <iostream>
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 #include <QSqlRecord>
+#include <QSqlDriver>
+#include <QSqlQuery>
 #include <QSqlError>
 #include <QSqlField>
 #include <QSqlIndex>
@@ -32,7 +35,12 @@
 db_relational_model::db_relational_model(const db_connection *cnn, const QString &table_name, QObject * parent)
   : QSqlRelationalTableModel(parent, cnn->get_db())
 {
+  pv_field_is_auto_value = 0;
+  pv_field_is_required = 0;
+  pv_field_is_read_only = 0;
   pv_child_model = 0;
+  pv_parent_model = 0;
+  pv_current_index_is_valid = false;
   //pv_row_to_insert = -1;
   pv_message_dialogs_enabled = true;
   init(cnn, table_name);
@@ -42,27 +50,66 @@ db_relational_model::db_relational_model(const db_connection *cnn, const QString
 db_relational_model::db_relational_model(QObject * parent, QSqlDatabase db)
   : QSqlRelationalTableModel(parent, db)
 {
+  pv_field_is_auto_value = 0;
+  pv_field_is_required = 0;
+  pv_field_is_read_only = 0;
   pv_message_dialogs_enabled = true;
   pv_child_model = 0;
+  pv_parent_model = 0;
+  pv_current_index_is_valid = false;
   //pv_row_to_insert = -1;
   pv_parent_has_row = false;
 }
 
 db_relational_model::~db_relational_model()
 {
+  if(pv_field_is_auto_value != 0){
+    delete[] pv_field_is_auto_value;
+  }
+  if(pv_field_is_required != 0){
+    delete[] pv_field_is_required;
+  }
+  if(pv_field_is_read_only != 0){
+    delete[] pv_field_is_read_only;
+  }
 }
 
 bool db_relational_model::init(const db_connection *cnn, const QString &table_name)
 {
+  QString str;
+  int i = 0;
   // Init the labels
   if(!pv_label.init(cnn, table_name)){
     std::cerr << "db_relational_model::" << __FUNCTION__ << ": pv_label.init() failed" << std::endl;
     return false;
   }
-  //setEditStrategy(QSqlTableModel::OnRowChange);
   setTable(table_name);
   // By default, set the table name to user friendly name
   pv_user_table_name = table_name;
+  // MySQL specifics
+  str = "QMYSQL";
+  if(cnn->get_driver_type() == str){
+    pv_using_mysql = true;
+    pv_mysql_specific = new db_mysql_specific(cnn);
+    if(!pv_mysql_specific->set_table(table_name)){
+      std::cerr << "db_relational_model::" << __FUNCTION__ << ": unable to init mysql_specific class" << std::endl;
+    }
+  }else{
+    pv_using_mysql = false;
+  }
+  // Store fields info
+  pv_field_is_auto_value = new bool[columnCount()];
+  pv_field_is_required =  new bool[columnCount()];
+  pv_field_is_read_only =  new bool[columnCount()];
+  for(i=0; i<columnCount(); i++){
+    pv_field_is_auto_value[i] = init_field_is_auto_value(i);
+    if(record(0).field(i).requiredStatus()){
+      pv_field_is_required[i] = true;
+    }else{
+      pv_field_is_required[i] = false;
+    }
+    pv_field_is_read_only[i] = record(0).field(i).isReadOnly();
+  }
   connect(
     this, SIGNAL(beforeInsert(QSqlRecord&)),
     this, SLOT(before_insert(QSqlRecord&) )
@@ -74,6 +121,15 @@ bool db_relational_model::init(const db_connection *cnn, const QString &table_na
   );
 */
   emit sig_select_called();
+
+/// tests
+for(i=0; i<columnCount(); i++){
+  std::cout << "Field: " << record(0).field(i).name().toStdString();
+  if(field_is_auto_value(i)){
+    std::cout << " AUTO ";
+  }
+  std::cout  << std::endl;
+}
   return true;
 }
 
@@ -91,9 +147,15 @@ void db_relational_model::set_user_headers()
   }
 }
 
-void db_relational_model::set_child_model(db_relational_model *child_model)
+void db_relational_model::set_child_model(db_relational_model *model)
 {
-  pv_child_model = child_model;
+  pv_child_model = model;
+  pv_child_model->set_parent_model(this);
+}
+
+void db_relational_model::set_parent_model(db_relational_model *model)
+{
+  pv_parent_model = model;
 }
 
 void db_relational_model::add_parent_relation_field(const QString &field_name)
@@ -144,6 +206,7 @@ void db_relational_model::current_row_changed(const QModelIndex &index)
     }
   }
 */
+  pv_current_index_is_valid = index.isValid();
   if(pv_child_model != 0){
     update_child_relations(index);
   }
@@ -317,22 +380,12 @@ void db_relational_model::update_child_relations(const QModelIndex &index)
       }
     }
     pv_child_model->update_relations(relations_values);
-    if(has_rows()){
-      pv_child_model->set_parent_has_row(true);
-    }else{
-      pv_child_model->set_parent_has_row(false);
-    }
   }
 }
 
-void db_relational_model::set_parent_has_row(bool has)
+bool db_relational_model::parent_has_valid_index()
 {
-  pv_parent_has_row = has;
-}
-
-bool db_relational_model::parent_has_row()
-{
-  return pv_parent_has_row;
+  return pv_parent_model->current_index_is_valid();
 }
 
 bool db_relational_model::has_child_model()
@@ -345,7 +398,7 @@ bool db_relational_model::has_child_model()
 
 bool db_relational_model::has_parent_model()
 {
-  if(pv_as_child_relation_values.count() > 0){
+  if(pv_parent_model != 0){
     return true;
   }
   return false;
@@ -356,13 +409,43 @@ QModelIndex db_relational_model::create_index(int row, int column)
   return createIndex(row, column);
 }
 
+bool db_relational_model::current_index_is_valid()
+{
+  return pv_current_index_is_valid;
+}
+
 void db_relational_model::before_insert(QSqlRecord &rec)
 {
+  int i=0;
+  std::cout << "********* Before inser call..." << std::endl;
+/*
   if(!pv_parent_has_row){
     revert();
+    return;
+  }
+*/
+  // data in record
+  for(i=0; i<rec.count(); i++){
+    std::cout << "*->>** Value: " << rec.value(i).toString().toStdString() << std::endl;
   }
   //std::cout << "db_table_widget::as_child_before_insert() Call.." << std::endl;
-  int i=0;
+  for(i=0; i<columnCount(); i++){
+    std::cout << rec.field(i).name().toStdString() << std::endl;
+    if(field_is_auto_value(i)/*&&(!rec.field(i).isGenerated())*/){
+      std::cout << "********** Auto filed: " << rec.field(i).name().toStdString() << std::endl;
+      if(!rec.field(i).isGenerated()){
+        std::cout << rec.field(i).name().toStdString() << ": *Not generated" << std::endl;
+      }else{
+        std::cout << rec.field(i).name().toStdString() << ": OK generated" << std::endl;
+      }
+    }
+    if(field_is_read_only(i)){
+      std::cout << rec.field(i).name().toStdString() << ": Read Only" << std::endl;
+    }
+    if(field_is_required(i)){
+      std::cout << rec.field(i).name().toStdString() << ": Required" << std::endl;
+    }
+  }
   for(i=0; i<pv_as_child_relation_values.count(); i++){
     rec.setValue(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i));
   }
@@ -376,7 +459,13 @@ int db_relational_model::row_count()
 QString db_relational_model::get_text_data(int row, int column)
 {
   QModelIndex index = createIndex(row, column);
+  current_row_changed(index);
   return data(index).toString();
+}
+
+db_relational_model *db_relational_model::get_child_model()
+{
+  return pv_child_model;
 }
 
 /*
@@ -389,3 +478,111 @@ void db_relational_model::prime_insert(int row, QSqlRecord & record)
   std::cout << "db_relational_model::prime_insert: row to insert: " << row << std::endl;
 }
 */
+
+bool db_relational_model::init_field_is_auto_value(int col)
+{
+  if(pv_using_mysql){
+    return pv_mysql_specific->is_auto_value(col);
+  }else{
+    return record(0).field(col).isAutoValue();
+  }
+  return false;
+}
+
+bool db_relational_model::field_is_auto_value(int col)
+{
+  if((col >= columnCount())||(pv_field_is_auto_value == 0)) {
+    return false;
+  }
+  return pv_field_is_auto_value[col];
+}
+
+bool db_relational_model::field_is_required(int col)
+{
+  if((col >= columnCount())||(pv_field_is_required == 0)) {
+    return false;
+  }
+  return pv_field_is_required[col];
+}
+
+bool db_relational_model::field_is_read_only(int col)
+{
+  if((col >= columnCount())||(pv_field_is_read_only == 0)){
+    return false;
+  }
+  return pv_field_is_read_only[col];
+}
+
+// Mysql specific class - Bug 194595 - Corrected in Qt 4.4.0
+
+db_mysql_specific::db_mysql_specific(const db_connection *cnn)
+{
+  pv_mysql = 0;
+
+  // Get running MYSQL handle
+  QVariant driver = cnn->get_db().driver()->handle();
+  if(strcmp(driver.typeName(), "MYSQL*")==0){
+    pv_mysql = *static_cast<MYSQL **>(driver.data());
+  }
+  if(pv_mysql == 0){
+    std::cerr << "db_mysql_specific::" << __FUNCTION__ << ": uable to get MySQL handle" << std::endl;
+    pv_valid = false;
+    pv_mysql = 0;
+    return;
+  }
+  pv_valid = true;
+}
+
+db_mysql_specific::~db_mysql_specific()
+{
+}
+
+bool db_mysql_specific::set_table(const QString &table_name)
+{
+
+  QString SQL;
+  QByteArray b_SQL;
+  const char *c_SQL;
+  MYSQL_RES *result = 0;
+  MYSQL_FIELD *field = 0;
+
+  SQL = "SELECT * FROM " + table_name;
+  b_SQL = SQL.toAscii();
+  c_SQL = b_SQL.constData();
+
+  if(!pv_valid){
+    return false;
+  }
+
+  if((mysql_query(pv_mysql, c_SQL)) != 0){
+    std::cerr << "db_mysql_specific::" << __FUNCTION__ << ": query failed" << std::endl;
+    std::cerr << "db_mysql_specific::" << __FUNCTION__ << ": Error: " << mysql_error(pv_mysql) << std::endl;
+    pv_valid = false;
+    return false;
+  }
+  result = mysql_use_result(pv_mysql);
+  if(result == 0){
+    std::cerr << "db_mysql_specific::" << __FUNCTION__ << ": no reult" << std::endl;
+    std::cerr << "db_mysql_specific::" << __FUNCTION__ << ": Error: " << mysql_error(pv_mysql) << std::endl;
+    pv_valid = false;
+    return false;
+  }
+  while((field = mysql_fetch_field(result))){
+    if(field->flags & AUTO_INCREMENT_FLAG){
+      pv_field_is_auto.append(true);
+    }else{
+      pv_field_is_auto.append(false);
+    }
+  }
+  mysql_free_result(result);
+
+  return true;
+}
+
+bool db_mysql_specific::is_auto_value(int col)
+{
+  if(!pv_valid){
+    return false;
+  }
+  return pv_field_is_auto.at(col);
+}

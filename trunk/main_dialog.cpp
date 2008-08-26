@@ -52,6 +52,18 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
 
     /// Tests
     pv_model = new db_relational_model(cnn, pv_table_name, 0);
+    //pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    /// tests
+    pv_child_model = new db_relational_model(cnn, "address_client",this);
+    pv_model->set_child_model(pv_child_model);
+  /// relation
+  db_relation relation(pv_table_name);
+  relation.add_parent_relation_field("id_cli_PK");
+  relation.add_parent_relation_field("id_nom_PK");
+  relation.add_child_relation_field("id_cli_FK");
+  relation.add_child_relation_field("nom_cli_FK");
+  pv_model->set_relation(relation);
+
 
     pv_tablew = new db_table_widget("test");
     //pv_tablew->init(cnn, pv_table_name);
@@ -65,7 +77,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     /// TESTS avec selectionsmodeles
     pv_selection_model = new QItemSelectionModel(pv_model);
     pv_tablew->set_selection_model(pv_selection_model);
-    //pv_tabw->set_selection_model(pv_selection_model);
+    pv_tabw->set_selection_model(pv_selection_model);
 
     pv_form = new db_form("test");
     pv_form->init(cnn, pv_table_name, "address_client");
@@ -101,6 +113,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     connect(
       pv_sql_cbox, SIGNAL(sig_data(const QString&)), this, SLOT(display_text(const QString&))
     );
+
 }
 
 void main_dialog::display_text(const QString& txt)
@@ -143,5 +156,6 @@ void main_dialog::open_systable()
 
 void main_dialog::tests()
 {
-
+  pv_model->select();
+  pv_html->tests();
 }

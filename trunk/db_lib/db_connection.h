@@ -35,7 +35,7 @@ class db_connection
   bool set_host_name(const QString &host_name);
   bool set_port(const QString &port);
   bool set_db_name(const QString &db_name);
-  bool set_login(const QString &user, const QString &password);
+  bool set_login(const QString user, const QString password);
   bool set_connection();
   // Return true if db is open
   bool is_open() const;
@@ -43,7 +43,13 @@ class db_connection
   QString last_error() const;	// Return the last error from QSqlDatabe instance (pv_db)
   bool create_test_tables();
   QSqlDatabase get_db() const;	// Return the instance of a QSqlDatabase (connection)
+  QString get_driver_type() const;
   QString get_cnn_name() const ;
+  QString get_host_name() const;
+  QString get_port() const;
+  QString get_db_name() const;
+  QString get_login_user() const;
+  QString get_login_passwd() const;
   QStringList get_databases() const;
   QStringList get_tables() const;
 

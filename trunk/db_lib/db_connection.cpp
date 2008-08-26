@@ -91,7 +91,7 @@ bool db_connection::set_db_name(const QString &db_name)
   return true;
 }
 
-bool db_connection::set_login(const QString &user, const QString &password)
+bool db_connection::set_login(const QString user, const QString password)
 {
   pv_db.setUserName(user);
   pv_db.setPassword(password);
@@ -143,6 +143,38 @@ QString db_connection::last_error() const
 QSqlDatabase db_connection::get_db() const
 {
   return pv_db;
+}
+
+QString db_connection::get_driver_type() const
+{
+  return pv_db_driver;
+}
+
+QString db_connection::get_host_name() const
+{
+  return pv_db.hostName();
+}
+
+QString db_connection::get_port() const
+{
+  QString port;
+  port.setNum(pv_db.port());
+  return port;
+}
+
+QString db_connection::get_db_name() const
+{
+  return pv_db.databaseName();
+}
+
+QString db_connection::get_login_user() const
+{
+  return pv_db.userName();
+}
+
+QString db_connection::get_login_passwd() const
+{
+  return pv_db.password();
 }
 
 QString db_connection::get_cnn_name() const

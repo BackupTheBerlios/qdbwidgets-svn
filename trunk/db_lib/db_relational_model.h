@@ -33,6 +33,7 @@
 class QString;
 class QStringList;
 class QModelIndex;
+class db_mysql_specific;
 
 class db_relational_model : public QSqlRelationalTableModel
 {
@@ -49,7 +50,9 @@ class db_relational_model : public QSqlRelationalTableModel
   /// Set user friendly headers (found with db_field_label)
   void set_user_headers();
   /// Set given model the child model
-  void set_child_model(db_relational_model *child_model);
+  void set_child_model(db_relational_model *model);
+  // This is automatically called - don't use
+  void set_parent_model(db_relational_model *model);
   /**
     Relation management:
       1: Define fileds in the relation, with add_child_relation_field() and add_child_relation_field()
@@ -79,14 +82,18 @@ class db_relational_model : public QSqlRelationalTableModel
   void update_relations(const QStringList &relations_values);
   // Return true while the model has rows
   bool has_rows();
-  // When parent model contains no row, we must disable the add of row
-  void set_parent_has_row(bool has);
-  bool parent_has_row();
+  bool parent_has_valid_index();
   bool has_child_model();
-  bool has_parent_model(); // FIXME: realy not proper implemented !
+  bool has_parent_model();
+  bool current_index_is_valid();
   QModelIndex create_index(int row, int column);
   int row_count();
   QString get_text_data(int row, int column);
+  db_relational_model *get_child_model();
+  /// get fields infos
+  bool field_is_auto_value(int col);
+  bool field_is_required(int col);
+  bool field_is_read_only(int col);
 
  public slots:
   // Recieve row change signal from view (or view's selectionModel)
@@ -110,9 +117,38 @@ class db_relational_model : public QSqlRelationalTableModel
   bool pv_message_dialogs_enabled;
   QString pv_user_table_name; // User friendly table name
   db_relational_model *pv_child_model;
+  db_relational_model *pv_parent_model;
   void update_child_relations(const QModelIndex &index);
   //int pv_row_to_insert; // Look at before_insert() and current_row_changed()
   bool pv_parent_has_row; // When parent model contains no row, we must disable the add of row
+  bool pv_using_mysql;
+  db_mysql_specific *pv_mysql_specific;
+  // Store field info
+  bool *pv_field_is_auto_value;
+  bool *pv_field_is_required;
+  bool *pv_field_is_read_only;
+  bool init_field_is_auto_value(int col);
+  bool pv_current_index_is_valid;
+};
+
+// Have a problem to test if a field is auot_increment with Mysql.
+// Bug ?? At the moment, this class should help.
+#ifdef WIN32
+  #include <winsock.h>
+#endif
+#include <mysql/mysql.h>
+class db_mysql_specific
+{
+ public:
+  db_mysql_specific(const db_connection *cnn);
+  ~db_mysql_specific();
+  bool set_table(const QString &table_name);
+  bool is_auto_value(int col);
+
+ private:
+  MYSQL *pv_mysql;
+  bool pv_valid;
+  QList<bool> pv_field_is_auto;
 };
 
 #endif // define DB_RELATIONAL_MODEL

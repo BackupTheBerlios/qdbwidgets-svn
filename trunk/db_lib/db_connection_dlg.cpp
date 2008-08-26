@@ -123,10 +123,23 @@ db_connection_dlg::db_connection_dlg(const QString & name, QWidget *parent)
   pv_vright_layout->addWidget(pb_cancel);
   connect(pb_cancel, SIGNAL(clicked()), this, SLOT(cancel()));
   setLayout(pv_hmain_layout);
+  setWindowTitle(name);
 }
 
 db_connection_dlg::~db_connection_dlg()
 {
+}
+
+bool db_connection_dlg::set_dbc(const db_connection *dbc)
+{
+  pv_dbc = dbc;
+  cb_db_driver->setItemText(0, dbc->get_driver_type());
+  if(cb_db_driver->currentText() == "QSQLITE"){
+    le_db_file->setText(pv_dbc->get_db_name());
+  }
+  le_host->setText( pv_dbc->get_host_name());
+  le_port->setText(pv_dbc->get_port());
+  le_user->setText(pv_dbc->get_login_user());
 }
 
 db_connection *db_connection_dlg::get_dbc() const
@@ -296,7 +309,6 @@ void db_connection_dlg::disconnect_db()
 
 void db_connection_dlg::list_tables()
 {
-  int i = 0;
   QStringList tables;
   cb_tables->clear();
   if(pv_dbc != 0){

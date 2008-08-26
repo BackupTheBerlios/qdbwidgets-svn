@@ -29,6 +29,7 @@
 
 class QDataWidgetMapper;
 class QAbstractItemModel;
+class db_relational_model;
 class QItemSelectionModel;
 class QGridLayout;
 class QHBoxLayout;
@@ -40,11 +41,10 @@ class db_tab_view : public QWidget
 
  public:
   db_tab_view(QWidget *parent = 0);
-  void setModel(QAbstractItemModel *model);
+  void setModel(db_relational_model *model);
   /// set the selectionModel to update current automatically
   void setSelectionModel(QItemSelectionModel *selectionModel);
   QAbstractItemModel * model();
-  void unsetModel();
   void display_nav();
   /// Set / unset Auto update of data
   void set_auto_submit(bool auto_update);
@@ -54,13 +54,14 @@ class db_tab_view : public QWidget
   void clear_displayed_data();
   /// Set /unset all lineEdits editable
   void set_all_editable(bool editable);
+  void set_text_edited(bool edited);
 
  signals:
   void current_row_changed(int row);
   void before_row_changed(int row);
   void sig_delete_row(int row);
   void sig_insert_row();
-  bool sig_submit(int current_row);
+  //bool sig_submit(int current_row);
   void sig_revert();
 
  public slots:
@@ -69,6 +70,8 @@ class db_tab_view : public QWidget
   void index_changed(int row);
   // Detect changes
   void detect_changes(int row);
+  void text_edited(const QString&);
+
   void bofore_model_select();
   void model_selected();
   void goto_first();
@@ -81,8 +84,12 @@ class db_tab_view : public QWidget
 
  private:
   QDataWidgetMapper *pv_mapper;
+  db_relational_model *pv_model;
+  void unsetModel();
   QGridLayout *pv_layout;
   QList<QLineEdit*> pv_edit_list;
+  QList<bool> pv_required_list;
+  QList<bool> pv_autoval_list;
   QList<QLabel*> pv_label_list;
   QPushButton *pb_first;
   QPushButton *pb_previous;
@@ -93,8 +100,10 @@ class db_tab_view : public QWidget
   QPushButton *pb_delete;
   QPushButton *pb_insert;
   QLabel *lb_nb_rows;
+  QLabel *lb_status;
   QHBoxLayout *pv_nav_layout;
   bool pv_new_row;    // Please look at detect-changes() and insert_row()
+  bool pv_text_edited;
 };
 
 #endif

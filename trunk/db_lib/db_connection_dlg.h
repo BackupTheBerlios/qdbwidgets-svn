@@ -41,6 +41,7 @@ class db_connection_dlg : public QDialog
  public:
   db_connection_dlg(const QString & name, QWidget *parent = 0);
   ~db_connection_dlg();
+  bool set_dbc(const db_connection *dbc);
   db_connection *get_dbc() const;
 
  private slots:

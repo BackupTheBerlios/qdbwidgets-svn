@@ -53,14 +53,20 @@ bool db_tab_widget::set_model(db_relational_model *model)
   // Init the model
   pv_table_model = model;
   pv_table_model->set_user_headers();
-  pv_table_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+  //pv_table_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
   lb_user_table_name->setText(pv_table_model->get_user_table_name());
 
   // Init the view
   pv_tab_view = new db_tab_view(this);
   pv_tab_view->setModel(pv_table_model);
   pv_tab_view->display_nav();
-  pv_tab_view->set_auto_submit(false);
+  if(pv_table_model->editStrategy() == QSqlTableModel::OnManualSubmit){
+    pv_tab_view->set_auto_submit(false);
+    std::cout << "****  Auto submit OFF, edit strategy: " << pv_table_model->editStrategy() << std::endl;
+  }else{
+    pv_tab_view->set_auto_submit(true);
+    std::cout << "****  Auto submit ON, edit strategy: " << pv_table_model->editStrategy() << std::endl;
+  }
 
   pv_layout->addWidget(pv_tab_view);
 
@@ -151,32 +157,28 @@ void db_tab_widget::current_row_changed(int row)
   emit sig_current_row_changed(index);
 }
 /*
-void db_tab_widget::as_child_before_insert(QSqlRecord &rec)
-{
-  std::cout << "db_TAB_widget::as_child_before_insert() Call.." << std::endl;
-  int i=0;
-  for(i=0; i<pv_as_child_relation_values.count(); i++){
-    rec.setValue(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i));
-  }
-}
-*/
 bool db_tab_widget::submit_all(int current_row)
 {
   QString msg;
-  if(!pv_table_model->submitAll()){
-    msg = tr("Unable to save data\n");
-    msg += pv_table_model->lastError().text();
-    QMessageBox::critical(this, tr("TITRE"), msg);
-    return false;
+  if(pv_table_model->editStrategy() == QSqlTableModel::OnManualSubmit){
+    if(!pv_table_model->submitAll()){
+      msg = tr("Unable to save data\n");
+      msg += pv_table_model->lastError().text();
+      QMessageBox::critical(this, tr("TITRE"), msg);
+      return false;
+    }
+    select();
+    pv_tab_view->goto_row(current_row);
   }
-  select();
-  pv_tab_view->goto_row(current_row);
   return true;
 }
+*/
 
 void db_tab_widget::revert_all()
 {
-  pv_table_model->revertAll();
+  //if(pv_table_model->editStrategy() == QSqlTableModel::OnManualSubmit){
+  //  pv_table_model->revertAll();
+  //}
 }
 
 QString db_tab_widget::get_table_name()

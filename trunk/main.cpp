@@ -40,11 +40,23 @@ int main(int argc, char **argv)
   db_connection *dbc = 0;
   main_dialog md("test");
 
+  /// Tests
+/*
+  dbc = new db_connection("QSQLITE", "test");
+  dbc->set_db_name("qwidget_test.db");
+*/
+  dbc = new db_connection("QMYSQL", "test");
+  //dbc->set_db_name("scandyna");
+  dbc->set_login("scandyna","");
+
   db_connection_dlg dbc_dlg("Connexion");
+  dbc_dlg.set_dbc(dbc);
   retval = dbc_dlg.exec();
-  std::cout << "Return: " << retval << std::endl;
+  //std::cout << "Return: " << retval << std::endl;
   if(retval == QDialog::Accepted){
     dbc = dbc_dlg.get_dbc();
+  }else{
+    return 1;
   }
 
   if(dbc != 0){

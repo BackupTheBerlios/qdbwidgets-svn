@@ -60,6 +60,7 @@ class main_dialog : public QDialog
 
   private:
     db_relational_model *pv_model;
+    db_relational_model *pv_child_model;
     db_relational_model *pv_sys_model;
     db_tab_widget *pv_tabw;
     db_table_widget *pv_tablew;

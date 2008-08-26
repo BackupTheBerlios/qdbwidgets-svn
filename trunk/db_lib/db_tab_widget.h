@@ -38,6 +38,9 @@ class QModelIndex;
 class QItemSelectionModel;
 class QAbstractItemModel;
 
+/// Note: with this widget, the model's edit strategy should be set to: OnManualSubmit submit
+/// Use: model->setEditStrategy(QSqlTableModel::OnManualSubmit); for this
+
 class db_tab_widget : public QWidget
 {
  Q_OBJECT
@@ -70,8 +73,7 @@ class db_tab_widget : public QWidget
     //void current_data_changed(int row);
 
     void current_row_changed(int row);
-    //void as_child_before_insert(QSqlRecord &rec);
-    bool submit_all(int current_row);
+    //bool submit_all(int current_row);
     void revert_all();
 
   private:

@@ -58,6 +58,7 @@ bool db_table_widget::set_model(db_relational_model *model)
 {
   pv_table_model = model;
   pv_table_model->set_user_headers();
+  //pv_table_model->setEditStrategy(QSqlTableModel::OnRowChange);
   lb_user_table_name->setText(pv_table_model->get_user_table_name());
   // Init the view
   pv_table_view = new QTableView(this);
@@ -73,13 +74,19 @@ bool db_table_widget::set_model(db_relational_model *model)
 
   pb_insert = new QPushButton(tr("Insert"));
   pb_delete = new QPushButton(tr("Delete"));
+  //pb_save = new QPushButton(tr("Save"));
+  //pb_cancel = new QPushButton(tr("Cancel"));
   pv_hlayout->addWidget(pb_insert);
   pv_hlayout->addWidget(pb_delete);
+  //pv_hlayout->addWidget(pb_save);
+  //pv_hlayout->addWidget(pb_cancel);
 
   pv_layout->addLayout(pv_hlayout);
 
   connect(pb_insert, SIGNAL(clicked()), this, SLOT(insert_record()));
   connect(pb_delete, SIGNAL(clicked()), this, SLOT(delete_record()));
+  //connect(pb_save, SIGNAL(clicked()), this, SLOT(save_record()));
+  //connect(pb_cancel, SIGNAL(clicked()), this, SLOT(revert_record()));
   // Signal from tableView whenn seleted (to update child)
   connect( pv_table_view->selectionModel(),
     SIGNAL(currentRowChanged(const QModelIndex&, const QModelIndex&)),
@@ -123,15 +130,20 @@ void db_table_widget::insert_record()
 {
   QString msg;
   int row = 0;
+
   if(pv_table_model->has_parent_model()){
-    if(!pv_table_model->parent_has_row()){
+    if(!pv_table_model->parent_has_valid_index()){
       return;
     }
   }
-  if(!pv_table_model->insertRow(row)){
+  row = pv_table_model->rowCount();
+/*
+  if(!pv_table_model->insertRows(row, 1)){
     msg = tr("Insertion failed");
     QMessageBox msgbox(QMessageBox::Critical, pv_table_model->get_user_table_name(), msg);
   }
+*/
+  pv_table_model->insertRows(row, 1);
 }
 
 void db_table_widget::delete_record()

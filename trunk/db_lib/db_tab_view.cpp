@@ -19,6 +19,7 @@
  ***************************************************************************/
 
 #include "db_tab_view.h"
+#include "db_relational_model.h"
 #include <iostream>
 #include <QDataWidgetMapper>
 #include <QGridLayout>
@@ -29,6 +30,7 @@
 #include <QPushButton>
 #include <QModelIndex>
 #include <QMessageBox>
+#include <QSqlError>
 
 db_tab_view::db_tab_view(QWidget *parent)
   : QWidget(parent)
@@ -44,8 +46,11 @@ db_tab_view::db_tab_view(QWidget *parent)
   lb_nb_rows = 0;
   pv_nav_layout = 0;
   pv_new_row = false;
+  pv_text_edited = false;
   pv_mapper = new QDataWidgetMapper;
   pv_layout = new QGridLayout(this);
+  lb_status = new QLabel(tr("Ready"));
+  pv_layout->addWidget(lb_status);
   setLayout(pv_layout);
   connect(pv_mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(index_changed(int)));
   connect(this, SIGNAL(before_row_changed(int)), this, SLOT(detect_changes(int)));
@@ -60,23 +65,14 @@ void db_tab_view::bofore_model_select()
 void db_tab_view::model_selected()
 {
   //std::cout << "db_tab_view::model_selected: rows: " << pv_mapper->model()->rowCount() << std::endl;
-  if(lb_nb_rows != 0){
-    QString txt = tr("Rows: ");
-    QString row;
-    //row.setNum(pv_mapper->currentIndex());
-    //txt += row;
-    //txt += tr(" of ");
-    row.setNum(pv_mapper->model()->rowCount());
-    txt += row;
-    lb_nb_rows->setText(txt);
-  }
   goto_row(0);
 }
 
-void db_tab_view::setModel(QAbstractItemModel *model)
+void db_tab_view::setModel(db_relational_model *model)
 {
   int col=0;
   unsetModel();
+  pv_model = model;
   pv_mapper->setModel(model);
   pv_mapper->setItemDelegate(new QSqlRelationalDelegate(pv_mapper));
 
@@ -85,8 +81,11 @@ void db_tab_view::setModel(QAbstractItemModel *model)
     pv_label_list.at(col)->setText(model->headerData(col, Qt::Horizontal).toString());
     pv_layout->addWidget(pv_label_list.at(col));
     pv_edit_list.append(new QLineEdit);
+    pv_required_list.append(model->field_is_required(col));
+    pv_autoval_list.append(model->field_is_auto_value(col));
     pv_layout->addWidget(pv_edit_list.at(col));
     pv_mapper->addMapping(pv_edit_list.at(col), col);
+    connect(pv_edit_list.at(col), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
   }
   connect(model, SIGNAL(sig_before_select()), this, SLOT(bofore_model_select()) );
   connect(model, SIGNAL(sig_select_called()), this, SLOT(model_selected()) );
@@ -208,20 +207,85 @@ void db_tab_view::set_all_editable(bool editable)
 
 bool db_tab_view::submit()
 {
-  if(!pv_mapper->submit()){
-    QMessageBox::critical(this, tr("TITRE"), tr("Unable to save data"));
-    return false;
+  int i=0;
+  QString msg;
+  bool ok = false;
+  int index = 0;
+  // Test if required fields have data
+  for(i=0; i < pv_required_list.count(); i++){
+    if((pv_required_list.at(i) == true)&&(pv_autoval_list.at(i) == false)&&(pv_edit_list.at(i)->text().isEmpty())){
+      msg = pv_label_list.at(i)->text();
+      msg += tr(":\nField is required");
+      QMessageBox::warning(this, tr("TITRE"), msg);
+      set_text_edited(false);
+      return false;
+    }
   }
-  pv_new_row = false;
-  emit sig_submit(pv_mapper->currentIndex());
+/*
+  //if((pv_mapper->submitPolicy() == QDataWidgetMapper::ManualSubmit)||(pv_new_row)){
+    if(!pv_mapper->submit()){
+    //if(!pv_model->submitAll()){
+      msg = tr("Unable to save data\n\n");
+      msg += tr("Reported error:\n");
+      msg += pv_model->lastError().text();
+      QMessageBox::critical(this, tr("TITRE"), msg);
+      //revert();
+      return false;
+    }
+    pv_new_row = false;
+    set_text_edited(false);
+    //emit sig_submit(pv_mapper->currentIndex());
+  //}
+*/
+
+  // A problem with submitting simply call pv_mapper->submit()
+  // An issue foundon: http://lists.trolltech.com/qt-interest/2007-05/thread00305-0.html
+  index = pv_mapper->currentIndex();
+
+  ok = pv_mapper->submit();
+  if(ok){
+    ok = pv_model->submitAll();
+    if(ok){
+      pv_mapper->setCurrentIndex(index);
+      set_text_edited(false);
+      pv_new_row = false;
+    }else{
+      msg = tr("Unable to save data to database ! (Datamodel submit failed)\n\n");
+      msg += tr("Reported error:\n");
+      msg += pv_model->lastError().text();
+      QMessageBox::critical(this, tr("TITRE"), msg);
+    }
+  }else{
+    msg = tr("Unable to save data to database !(Form submit failed)\n\n");
+    msg += tr("Reported error:\n");
+    msg += pv_model->lastError().text();
+    QMessageBox::critical(this, tr("TITRE"), msg);
+  }
+
+/*
+  ok = pv_model->submit();
+  if(!ok){
+    msg = tr("Unable to save data to database !\n\n");
+    msg += tr("Reported error:\n");
+    msg += pv_model->lastError().text();
+    QMessageBox::critical(this, tr("TITRE"), msg);
+  }
+*/
   return true;
 }
 
 void db_tab_view::revert()
 {
-  pv_new_row = false;
-  pv_mapper->revert();
-  emit sig_revert();
+  //if(pv_mapper->submitPolicy() == QDataWidgetMapper::ManualSubmit){
+    if(pv_new_row){
+      pv_model->select();
+      goto_first();
+      set_text_edited(false);
+    }
+    pv_new_row = false;
+    pv_mapper->revert();
+    emit sig_revert();
+  //}
 }
 
 void db_tab_view::index_changed(int row)
@@ -230,6 +294,15 @@ void db_tab_view::index_changed(int row)
     //detect_changes(row);
   }
   emit current_row_changed(row);
+  if(lb_nb_rows != 0){
+    QString txt = tr("Rows: ");
+    QString current_row, rows;
+    current_row.setNum(row + 1);
+    txt += current_row + "/";
+    rows.setNum(pv_model->rowCount());
+    txt += rows;
+    lb_nb_rows->setText(txt);
+  }
 }
 
 void db_tab_view::goto_first()
@@ -255,7 +328,7 @@ void db_tab_view::goto_last()
   emit before_row_changed(pv_mapper->currentIndex());
   pv_mapper->toLast();
 }
-
+/*
 void db_tab_view::detect_changes(int row)
 {
   int i=0, ret;
@@ -290,6 +363,54 @@ void db_tab_view::detect_changes(int row)
       }
     }
   }
+}
+*/
+
+void db_tab_view::detect_changes(int row)
+{
+  int ret = 0;
+  // Run only if the auto submit is unactive
+  if(pv_mapper->submitPolicy() == QDataWidgetMapper::ManualSubmit){
+    //std::cout << "Detect changes, row: " << row << std::endl;
+/*
+    if(pv_new_row){
+      // Just say edited
+      pv_text_edited = true;
+    }else{
+*/
+        if(pv_text_edited){
+          std::cout << "Detect changes: Diff" << std::endl;
+          ret = QMessageBox::question(this, tr("Nom à mettre"), tr("Would you like to save changes ?"),
+            QMessageBox::Save | QMessageBox::Cancel );
+          if(ret == QMessageBox::Save){
+            set_text_edited(true);
+            submit();
+            return;
+          }else{
+            set_text_edited(false);
+            revert();
+            return;
+          }
+        //}
+      }
+  }else{
+    lb_status->setText(tr("Ready")); // Not clean !
+  }
+}
+
+void db_tab_view::text_edited(const QString&)
+{
+  set_text_edited(true);
+}
+
+void db_tab_view::set_text_edited(bool edited)
+{
+  if(edited){
+    lb_status->setText(tr("Row modified *"));
+  }else{
+    lb_status->setText(tr("Ready"));
+  }
+  pv_text_edited = edited;
 }
 
 void db_tab_view::delete_row()
