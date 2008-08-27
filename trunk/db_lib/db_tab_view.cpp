@@ -24,6 +24,7 @@
 #include <QDataWidgetMapper>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QAbstractItemModel>
 #include <QItemSelectionModel>
 #include <QSqlRelationalDelegate>
@@ -48,10 +49,13 @@ db_tab_view::db_tab_view(QWidget *parent)
   pv_new_row = false;
   pv_text_edited = false;
   pv_mapper = new QDataWidgetMapper;
-  pv_layout = new QGridLayout(this);
+  // Main layout
+  pv_vlayout = new QVBoxLayout(this);
+  pv_glayout = new QGridLayout;
   lb_status = new QLabel(tr("Ready"));
-  pv_layout->addWidget(lb_status);
-  setLayout(pv_layout);
+  pv_vlayout->addWidget(lb_status);
+  pv_vlayout->addLayout(pv_glayout);
+  setLayout(pv_vlayout);
   connect(pv_mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(index_changed(int)));
   connect(this, SIGNAL(before_row_changed(int)), this, SLOT(detect_changes(int)));
 }
@@ -68,25 +72,74 @@ void db_tab_view::model_selected()
   goto_row(0);
 }
 
-void db_tab_view::setModel(db_relational_model *model)
+void db_tab_view::setModel(db_relational_model *model, label_position label_pos)
 {
-  int col=0;
+  int item = 0, row = 0, col = 0;
+  int box_item = 0, box_col = 0; // Such a virtual box to store labels and edits
+  int max_row = 3;
+  int n_col = 0;  // Nb columns needed
+  int fld_count = 0;
   unsetModel();
   pv_model = model;
   pv_mapper->setModel(model);
   pv_mapper->setItemDelegate(new QSqlRelationalDelegate(pv_mapper));
 
-  for(col=0; col < model->columnCount(); col++){
-    pv_label_list.append(new QLabel);
-    pv_label_list.at(col)->setText(model->headerData(col, Qt::Horizontal).toString());
-    pv_layout->addWidget(pv_label_list.at(col));
-    pv_edit_list.append(new QLineEdit);
-    pv_required_list.append(model->field_is_required(col));
-    pv_autoval_list.append(model->field_is_auto_value(col));
-    pv_layout->addWidget(pv_edit_list.at(col));
-    pv_mapper->addMapping(pv_edit_list.at(col), col);
-    connect(pv_edit_list.at(col), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
+  label_pos = db_tab_view::over; // Tests
+  //pv_glayout->setColumnMinimumWidth(3, 50);
+
+  // fileds in model
+  fld_count = model->columnCount();
+  if(max_row > fld_count){
+    //max_row = fld_count;
   }
+  // Columns needed
+  n_col = fld_count / max_row;
+
+  // For ech field in model
+  row = 0;
+  for(item = 0; item < model->columnCount(); item++){
+    // Add labels and lineEdits
+    pv_label_list.append(new QLabel);
+    pv_label_list.at(item)->setText(model->headerData(item, Qt::Horizontal).toString());
+    pv_edit_list.append(new QLineEdit);
+    pv_required_list.append(model->field_is_required(item));
+    pv_autoval_list.append(model->field_is_auto_value(item));
+    pv_mapper->addMapping(pv_edit_list.at(item), item);
+    connect(pv_edit_list.at(item), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
+
+    // Set layout
+    if(box_item >= max_row){
+      box_item = 0;
+      box_col = box_col + 4;  // Adding space for strech
+    }
+    // label positions
+    if(label_pos == db_tab_view::over){
+      row = box_item * 2;
+      col = box_col;
+    }else if(label_pos == db_tab_view::left){
+      row = box_item;
+      col = box_col;
+    }
+    pv_glayout->addWidget(pv_label_list.at(item), row, col);
+    std::cout << "--> ** Add Label[" << item << "] at: row: " << row << " col: " << col << std::endl;
+
+    // LineEdit positions
+    if(label_pos == db_tab_view::over){
+      row++;
+    }else if(label_pos == db_tab_view::left){
+      col = box_col + 2;
+      // Add space
+      pv_glayout->setColumnMinimumWidth(col+1, 20);
+      std::cout << "--> ** Add space at col: " << col+1 << std::endl;
+    }
+    pv_glayout->addWidget(pv_edit_list.at(item), row, col);
+    std::cout << "--> ** Add Edit[" << item << "] at: row: " << row << " col: " << col << std::endl;
+    box_item++;
+  }
+
+  // TEST
+  //pv_edit_list.at(0)->hide();
+
   connect(model, SIGNAL(sig_before_select()), this, SLOT(bofore_model_select()) );
   connect(model, SIGNAL(sig_select_called()), this, SLOT(model_selected()) );
   //pv_mapper->toFirst();
@@ -116,7 +169,7 @@ void db_tab_view::display_nav()
 {
   if(pv_nav_layout == 0){
     pv_nav_layout = new QHBoxLayout(this);
-    pv_layout->addLayout(pv_nav_layout, pv_layout->rowCount(), 0);
+    pv_vlayout->addLayout(pv_nav_layout);
   }
   if(pb_first == 0){
     pb_first = new QPushButton(tr("<< First"));

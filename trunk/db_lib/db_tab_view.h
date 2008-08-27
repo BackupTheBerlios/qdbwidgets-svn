@@ -33,6 +33,7 @@ class db_relational_model;
 class QItemSelectionModel;
 class QGridLayout;
 class QHBoxLayout;
+class QVBoxLayout;
 class QPushButton;
 
 class db_tab_view : public QWidget
@@ -40,8 +41,9 @@ class db_tab_view : public QWidget
  Q_OBJECT
 
  public:
+  enum label_position { over, left };
   db_tab_view(QWidget *parent = 0);
-  void setModel(db_relational_model *model);
+  void setModel(db_relational_model *model, label_position label_pos = db_tab_view::over);
   /// set the selectionModel to update current automatically
   void setSelectionModel(QItemSelectionModel *selectionModel);
   QAbstractItemModel * model();
@@ -86,7 +88,8 @@ class db_tab_view : public QWidget
   QDataWidgetMapper *pv_mapper;
   db_relational_model *pv_model;
   void unsetModel();
-  QGridLayout *pv_layout;
+  QGridLayout *pv_glayout;
+  QVBoxLayout *pv_vlayout;
   QList<QLineEdit*> pv_edit_list;
   QList<bool> pv_required_list;
   QList<bool> pv_autoval_list;
