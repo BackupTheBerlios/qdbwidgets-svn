@@ -32,6 +32,10 @@
 #include <QModelIndex>
 #include <QMessageBox>
 #include <QSqlError>
+#include <QSqlRecord>
+#include <QSqlField>
+#include <QUiLoader>
+#include <QFile>
 
 db_tab_view::db_tab_view(QWidget *parent)
   : QWidget(parent)
@@ -46,6 +50,7 @@ db_tab_view::db_tab_view(QWidget *parent)
   pb_insert = 0;
   lb_nb_rows = 0;
   pv_nav_layout = 0;
+  pv_model = 0;
   pv_new_row = false;
   pv_text_edited = false;
   pv_mapper = new QDataWidgetMapper;
@@ -54,7 +59,7 @@ db_tab_view::db_tab_view(QWidget *parent)
   pv_glayout = new QGridLayout;
   lb_status = new QLabel(tr("Ready"));
   pv_vlayout->addWidget(lb_status);
-  pv_vlayout->addLayout(pv_glayout);
+
   setLayout(pv_vlayout);
   connect(pv_mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(index_changed(int)));
   connect(this, SIGNAL(before_row_changed(int)), this, SLOT(detect_changes(int)));
@@ -72,89 +77,199 @@ void db_tab_view::model_selected()
   goto_row(0);
 }
 
-void db_tab_view::setModel(db_relational_model *model, label_position label_pos)
+void db_tab_view::setModel(db_relational_model *model)
 {
-  int item = 0, row = 0, col = 0;
-  int box_item = 0, box_col = 0; // Such a virtual box to store labels and edits
-  int max_row = 3;
-  int n_col = 0;  // Nb columns needed
-  int fld_count = 0;
-  unsetModel();
   pv_model = model;
   pv_mapper->setModel(model);
   pv_mapper->setItemDelegate(new QSqlRelationalDelegate(pv_mapper));
 
-  label_pos = db_tab_view::over; // Tests
-  //pv_glayout->setColumnMinimumWidth(3, 50);
+  connect(model, SIGNAL(sig_before_select()), this, SLOT(bofore_model_select()) );
+  connect(model, SIGNAL(sig_select_called()), this, SLOT(model_selected()) );
+}
 
-  // fileds in model
-  fld_count = model->columnCount();
-  if(max_row > fld_count){
-    //max_row = fld_count;
+void db_tab_view::set_field_hidden(const QString &field_name)
+{
+  pv_hidden_fields.append(field_name);
+}
+
+bool db_tab_view::field_is_hidden(const QString &field_name)
+{
+  int index = pv_hidden_fields.indexOf(field_name);
+  if(index < 0){
+    return false;
+  }
+  return true;
+}
+
+bool db_tab_view::set_default_ui(label_position label_pos, int max_rows)
+{
+  int item = 0, row = 0, col = 0;
+  int box_item = 0, box_col = 0; // Such a virtual box to store labels and edits
+  int n_col = 0;  // Nb columns needed
+  int fld_count = 0;
+
+  if(pv_model == 0){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": model not set" << std::endl;
+    return false;
+  }
+  unset_ui();
+
+  // fileds in model that must be displayed
+  fld_count = pv_model->columnCount() - pv_hidden_fields.count();
+  if((max_rows > fld_count)||(max_rows == 0)){
+    max_rows = fld_count;
   }
   // Columns needed
-  n_col = fld_count / max_row;
+  n_col = fld_count / max_rows;
 
   // For ech field in model
   row = 0;
-  for(item = 0; item < model->columnCount(); item++){
+  for(item = 0; item < pv_model->columnCount(); item++){
     // Add labels and lineEdits
     pv_label_list.append(new QLabel);
-    pv_label_list.at(item)->setText(model->headerData(item, Qt::Horizontal).toString());
+    pv_label_list.at(item)->setText(pv_model->headerData(item, Qt::Horizontal).toString());
     pv_edit_list.append(new QLineEdit);
-    pv_required_list.append(model->field_is_required(item));
-    pv_autoval_list.append(model->field_is_auto_value(item));
+    pv_required_list.append(pv_model->field_is_required(item));
+    pv_autoval_list.append(pv_model->field_is_auto_value(item));
     pv_mapper->addMapping(pv_edit_list.at(item), item);
     connect(pv_edit_list.at(item), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
 
-    // Set layout
-    if(box_item >= max_row){
-      box_item = 0;
-      box_col = box_col + 4;  // Adding space for strech
-    }
-    // label positions
-    if(label_pos == db_tab_view::over){
-      row = box_item * 2;
-      col = box_col;
-    }else if(label_pos == db_tab_view::left){
-      row = box_item;
-      col = box_col;
-    }
-    pv_glayout->addWidget(pv_label_list.at(item), row, col);
-    std::cout << "--> ** Add Label[" << item << "] at: row: " << row << " col: " << col << std::endl;
+    if(!field_is_hidden(pv_model->record(0).field(item).name())){
+      // Set layout
+      if(box_item >= max_rows){
+        box_item = 0;
+        box_col = box_col + 4;  // Adding space for strech
+      }
+      // label positions
+      if(label_pos == db_tab_view::over){
+        row = box_item * 2;
+        col = box_col;
+      }else if(label_pos == db_tab_view::left){
+        row = box_item;
+        col = box_col;
+      }
+      pv_glayout->addWidget(pv_label_list.at(item), row, col);
+      //std::cout << "--> ** Add Label[" << item << "] at: row: " << row << " col: " << col << std::endl;
 
-    // LineEdit positions
-    if(label_pos == db_tab_view::over){
-      row++;
-    }else if(label_pos == db_tab_view::left){
-      col = box_col + 2;
-      // Add space
-      pv_glayout->setColumnMinimumWidth(col+1, 20);
-      std::cout << "--> ** Add space at col: " << col+1 << std::endl;
+      // LineEdit positions
+      if(label_pos == db_tab_view::over){
+        row++;
+      }else if(label_pos == db_tab_view::left){
+        col = box_col + 2;
+        // Add space
+        pv_glayout->setColumnMinimumWidth(col+1, 20);
+        //std::cout << "--> ** Add space at col: " << col+1 << std::endl;
+      }
+      pv_glayout->addWidget(pv_edit_list.at(item), row, col);
+      //std::cout << "--> ** Add Edit[" << item << "] at: row: " << row << " col: " << col << std::endl;
+      box_item++;
     }
-    pv_glayout->addWidget(pv_edit_list.at(item), row, col);
-    std::cout << "--> ** Add Edit[" << item << "] at: row: " << row << " col: " << col << std::endl;
-    box_item++;
   }
-
-  // TEST
-  //pv_edit_list.at(0)->hide();
-
-  connect(model, SIGNAL(sig_before_select()), this, SLOT(bofore_model_select()) );
-  connect(model, SIGNAL(sig_select_called()), this, SLOT(model_selected()) );
-  //pv_mapper->toFirst();
+  pv_vlayout->addLayout(pv_glayout);
+  return true;
 }
 
-void db_tab_view::unsetModel()
+bool db_tab_view::set_custom_ui(const QString &path)
 {
+  QUiLoader loader;
+  QFile file(path);
+  QWidget *custom_ui = 0;
+  int item = 0;
+
+  if(pv_model == 0){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": model not set" << std::endl;
+    return false;
+  }
+  unset_ui();
+
+  if(!file.open(QFile::ReadOnly)){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": unable to open file: " << path.toStdString() << std::endl;
+    return false;
+  }
+  custom_ui = loader.load(&file);
+  if(custom_ui == 0){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": unable to load UI : " << path.toStdString() << std::endl;
+    return false;
+  }
+  pv_vlayout->addWidget(custom_ui);
+
+  for(item = 0; item < pv_model->columnCount(); item++){
+    QString field_name, lb_name, le_name;
+    QLabel *tmp_lb = 0;
+    QLineEdit *tmp_le = 0;
+    field_name = pv_model->record(0).field(item).name();
+    //std::cout << "-> filed(" << item << ") name: " << field_name.toStdString() << std::endl;
+    lb_name = "lb_" + field_name;
+    le_name = "le_" + field_name;
+
+    // Find the label with compliant name
+    tmp_lb = custom_ui->findChild<QLabel*>(lb_name);
+    if(tmp_lb != 0){
+      pv_label_list.append(tmp_lb);
+      pv_label_list.at(item)->setText(pv_model->headerData(item, Qt::Horizontal).toString());
+    }else{  // Not found, set a new label (not visible)
+      pv_label_list.append(new QLabel);
+    }
+    // Find the lineEdit with compliant name
+    tmp_le = custom_ui->findChild<QLineEdit*>(le_name);
+    if(tmp_le != 0){
+      pv_edit_list.append(tmp_le);
+    }else{  // Not found, set a new lineEdit (not visible)
+      pv_edit_list.append(new QLineEdit);
+    }
+
+    pv_required_list.append(pv_model->field_is_required(item));
+    pv_autoval_list.append(pv_model->field_is_auto_value(item));
+    pv_mapper->addMapping(pv_edit_list.at(item), item);
+    connect(pv_edit_list.at(item), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
+
+  }
+  return true;
+}
+
+void db_tab_view::unset_ui()
+{
+  int i = 0;
+  for(i=0; i<pv_edit_list.count(); i++){
+    disconnect(pv_edit_list.at(i), SIGNAL(textEdited(const QString&)), this, SLOT(text_edited(const QString&)) );
+    pv_mapper->removeMapping(pv_edit_list.at(i));
+  }
   while(!pv_label_list.isEmpty()){
     delete pv_label_list.takeFirst();
   }
   while(!pv_edit_list.isEmpty()){
     delete pv_edit_list.takeFirst();
   }
+  pv_required_list.clear();
+  pv_autoval_list.clear();
 }
+/*
+void db_tab_view::hide_field(const QString &filed_name)
+{
+  int index = 0;
 
+  index = pv_model->record(0).indexOf(filed_name);
+  if(index < 0){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": no field named: " << filed_name.toStdString() << std::endl;
+    return;
+  }
+  // test if index is in pv_edit_list
+  if(index >= pv_edit_list.size()){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": Error: index out of range" << std::endl;
+    return;
+  }
+  // test if index is in pv_edit_list
+  if(index >= pv_label_list.size()){
+    std::cerr << "db_tab_view::" << __FUNCTION__ << ": Error: index out of range" << std::endl;
+    return;
+  }
+  // Ok, found - hide them
+  pv_edit_list.at(index)->hide();
+  pv_label_list.at(index)->hide();
+  //pv_glayout->removeWidget(pv_edit_list.at(index));
+  //pv_glayout->removeWidget(pv_label_list.at(index));
+}
+*/
 void db_tab_view::setSelectionModel(QItemSelectionModel *selectionModel)
 {
   connect(selectionModel, SIGNAL(currentRowChanged(QModelIndex, QModelIndex)), pv_mapper, SLOT(setCurrentModelIndex(QModelIndex)));

@@ -18,6 +18,9 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
+/// NOTE: when user enter more charachter than the field can contain, data will be simply lost.
+/// Must find somthing display warning before commit !
+
 #include "db_relational_model.h"
 #include <iostream>
 #include <QByteArray>

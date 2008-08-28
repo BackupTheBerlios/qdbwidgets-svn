@@ -49,19 +49,28 @@ class db_tab_widget : public QWidget
     /// Set_model - Call this before any use
     bool set_model(db_relational_model *model);
     void set_selection_model(QItemSelectionModel *model);
+    /// Set the default widgets (Labels and LineEdit)
+    bool set_default_ui(db_tab_view::label_position label_pos = db_tab_view::over, int max_rows = 0);
+    /// Set a custom *.ui file as UI
+    bool set_custom_ui(const QString &path);
+    /// Display navigation buttons
+    void display_nav();
+    /// Set hidden field - Call before set_xx_ui()
+    void set_field_hidden(const QString &filed_name);
+    void set_fields_hidden(const QStringList &fileds_name);
+    bool field_is_hidden(const QString &filed_name);
+
     QAbstractItemModel * get_model();
     /// Return number of fields (columns)
     int field_count();
     /// Activate navigation buttons
-    bool activate_nav();
+    //bool activate_nav();
     QString get_field_name(int col);
     QString get_table_name();
     QSqlRecord get_record(int row);
     void select();
     QStringList get_header_data();
     void set_editable(bool editable);
-    /// Hide a field
-    void hide_field(const QString &field_name);
 
   signals:
     void sig_current_data_changed(const QStringList &relations_values);

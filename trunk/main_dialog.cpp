@@ -71,6 +71,9 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
 
     pv_tabw = new db_tab_widget("test");
     pv_tabw->set_model(pv_model);
+    pv_tabw->set_field_hidden("id_cli_PK");
+    pv_tabw->set_default_ui();
+    pv_tabw->display_nav();
     //pv_tabw->init(cnn, pv_table_name)
     //pv_tabw->select();
 

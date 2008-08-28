@@ -185,6 +185,20 @@ void db_table_widget::set_editable(bool editable)
   }
 }
 
+void db_table_widget::set_field_hidden(const QString &field_name)
+{
+  int index = pv_table_model->fieldIndex(field_name);
+  pv_table_view->setColumnHidden(index, true);
+}
+
+void db_table_widget::set_fields_hidden(const QStringList &fileds_name)
+{
+  int i=0;
+  for(i=0; i<fileds_name.count(); i++){
+    set_field_hidden(fileds_name.at(i));
+  }
+}
+
 int db_table_widget::field_count()
 {
   return pv_table_model->columnCount();

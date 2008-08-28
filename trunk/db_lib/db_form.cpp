@@ -63,15 +63,23 @@ bool db_form::init(const db_connection *cnn, const QString &parent_table_name, c
   relation2.add_child_relation_field("id_adresse_FK");
   pv_child_model->set_relation(relation2);
 
+  /// views
   //pv_parent = new db_table_widget("test", this);
   pv_parent = new db_tab_widget("test", this);
   pv_vlayout->addWidget(pv_parent);
   pv_parent->set_model(pv_model);
+  pv_parent->set_field_hidden("id_cli_PK");
+  //pv_parent->set_fields_hidden(relation.get_parent_relation_fields());
+
+  pv_parent->set_default_ui(db_tab_view::left, 3);
+  pv_parent->display_nav();
   //pv_parent->hide_field("id_cli_PK");
 
   pv_child = new db_table_widget("test", this);
   pv_vlayout->addWidget(pv_child);
   pv_child->set_model(pv_child_model);
+  //pv_child->set_field_hidden("id_cli_FK");
+  pv_child->set_fields_hidden(relation.get_child_relation_fields());
   //pv_child->hide_field("id_cli_FK");
   //pv_child->hide_field("nom_cli_FK");
 

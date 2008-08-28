@@ -38,6 +38,7 @@ db_tab_widget::db_tab_widget(const QString &name, QWidget *parent)
     : QWidget(parent)
 {
   pv_table_model = 0;
+  pv_tab_view = 0;
 
   // Init layout and arranges labels and texts
   pv_layout = new QGridLayout(this);
@@ -59,7 +60,7 @@ bool db_tab_widget::set_model(db_relational_model *model)
   // Init the view
   pv_tab_view = new db_tab_view(this);
   pv_tab_view->setModel(pv_table_model);
-  pv_tab_view->display_nav();
+  //pv_tab_view->display_nav();
   if(pv_table_model->editStrategy() == QSqlTableModel::OnManualSubmit){
     pv_tab_view->set_auto_submit(false);
     std::cout << "****  Auto submit OFF, edit strategy: " << pv_table_model->editStrategy() << std::endl;
@@ -104,6 +105,79 @@ bool db_tab_widget::set_model(db_relational_model *model)
 void db_tab_widget::set_selection_model(QItemSelectionModel *model)
 {
   pv_tab_view->setSelectionModel(model);
+}
+
+bool db_tab_widget::set_default_ui(db_tab_view::label_position label_pos, int max_rows)
+{
+  if(pv_table_model == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": model is not set" << std::endl;
+    return false;
+  }
+  if(pv_tab_view == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": view is not set" << std::endl;
+    return false;
+  }
+  return   pv_tab_view->set_default_ui(label_pos, max_rows);
+}
+
+bool db_tab_widget::set_custom_ui(const QString &path)
+{
+  if(pv_table_model == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": model is not set" << std::endl;
+    return false;
+  }
+  if(pv_tab_view == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": view is not set" << std::endl;
+    return false;
+  }
+  return   pv_tab_view->set_custom_ui(path);
+}
+
+void db_tab_widget::display_nav()
+{
+  if(pv_table_model == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": model is not set" << std::endl;
+    return;
+  }
+  if(pv_tab_view == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": view is not set" << std::endl;
+    return;
+  }
+  pv_tab_view->display_nav();
+}
+
+void db_tab_widget::set_field_hidden(const QString &filed_name)
+{
+  if(pv_table_model == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": model is not set" << std::endl;
+    return;
+  }
+  if(pv_tab_view == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": view is not set" << std::endl;
+    return;
+  }
+  pv_tab_view->set_field_hidden(filed_name);
+}
+
+void db_tab_widget::set_fields_hidden(const QStringList &fileds_name)
+{
+  int i=0;
+  for(i=0; i<fileds_name.count(); i++){
+    set_field_hidden(fileds_name.at(i));
+  }
+}
+
+bool db_tab_widget::field_is_hidden(const QString &filed_name)
+{
+  if(pv_table_model == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": model is not set" << std::endl;
+    return false;
+  }
+  if(pv_tab_view == 0){
+    std::cerr << "db_table_widget::" << __FUNCTION__ << ": view is not set" << std::endl;
+    return false;
+  }
+  return   pv_tab_view->field_is_hidden(filed_name);
 }
 
 QAbstractItemModel * db_tab_widget::get_model()
@@ -204,14 +278,6 @@ QStringList db_tab_widget::get_header_data()
 void db_tab_widget::set_editable(bool editable)
 {
   pv_is_editable = editable;
-}
-
-void db_tab_widget::hide_field(const QString &field_name)
-{
-  int index = pv_table_model->fieldIndex(field_name);
-  if(index>0){
-    //pv_entry[index].hide_field(true);
-  }
 }
 
 void db_tab_widget::delete_record(int row)

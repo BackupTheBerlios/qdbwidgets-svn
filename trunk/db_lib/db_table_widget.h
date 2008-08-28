@@ -59,6 +59,9 @@ class db_table_widget : public QWidget
     void select();
     QStringList get_header_data();
     void set_editable(bool editable);
+    /// Set hidden field - Call before set_xx_ui()
+    void set_field_hidden(const QString &field_name);
+    void set_fields_hidden(const QStringList &fileds_name);
     /// Hide a field
     void hide_field(const QString &field_name);
 

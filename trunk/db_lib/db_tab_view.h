@@ -26,6 +26,7 @@
 #include <QLabel>
 #include <QList>
 #include <QModelIndex>
+#include <QStringList>
 
 class QDataWidgetMapper;
 class QAbstractItemModel;
@@ -43,11 +44,21 @@ class db_tab_view : public QWidget
  public:
   enum label_position { over, left };
   db_tab_view(QWidget *parent = 0);
-  void setModel(db_relational_model *model, label_position label_pos = db_tab_view::over);
+  /// Set the data model
+  void setModel(db_relational_model *model);
   /// set the selectionModel to update current automatically
   void setSelectionModel(QItemSelectionModel *selectionModel);
-  QAbstractItemModel * model();
+  /// Set the default widgets (Labels and LineEdit)
+  bool set_default_ui(label_position label_pos = db_tab_view::over, int max_rows = 0);
+  /// Set a custom *.ui file as UI
+  bool set_custom_ui(const QString &path);
+  /// Display navigation buttons
   void display_nav();
+  /// Set hidden field - Call before set_xx_ui()
+  void set_field_hidden(const QString &field_name);
+  bool field_is_hidden(const QString &field_name);
+  //void hide_field(const QString &filed_name);
+  QAbstractItemModel * model();
   /// Set / unset Auto update of data
   void set_auto_submit(bool auto_update);
   void goto_row(int row);
@@ -87,13 +98,14 @@ class db_tab_view : public QWidget
  private:
   QDataWidgetMapper *pv_mapper;
   db_relational_model *pv_model;
-  void unsetModel();
+  void unset_ui();
   QGridLayout *pv_glayout;
   QVBoxLayout *pv_vlayout;
   QList<QLineEdit*> pv_edit_list;
   QList<bool> pv_required_list;
   QList<bool> pv_autoval_list;
   QList<QLabel*> pv_label_list;
+  QStringList pv_hidden_fields;
   QPushButton *pb_first;
   QPushButton *pb_previous;
   QPushButton *pb_next;

@@ -21,3 +21,4 @@ SOURCES += main.cpp main_dialog.cpp \
 
 # Libs
 QT += sql
+CONFIG += uitools
