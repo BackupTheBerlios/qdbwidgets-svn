@@ -26,6 +26,8 @@ main_dialog::main_dialog(const QString & name, QWidget *parent)
   : QDialog(parent)
 {
   //pv_form = new db_form(name, this);
+  pv_tabw = 0;
+  pv_tablew = 0;
 }
 
 bool main_dialog::init(const db_connection *cnn, const QString& table_name)
@@ -54,7 +56,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_model = new db_relational_model(cnn, pv_table_name, 0);
     //pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
     /// tests
-    pv_child_model = new db_relational_model(cnn, "address_client",this);
+    pv_child_model = new db_relational_model(cnn, "adresse_client",this);
     pv_model->set_child_model(pv_child_model);
   /// relation
   db_relation relation(pv_table_name);
@@ -65,10 +67,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
   pv_model->set_relation(relation);
 
 
-    pv_tablew = new db_table_widget("test");
-    //pv_tablew->init(cnn, pv_table_name);
-    pv_tablew->set_model(pv_model);
-
+/*
     pv_tabw = new db_tab_widget("test");
     pv_tabw->set_model(pv_model);
     pv_tabw->set_field_hidden("id_cli_PK");
@@ -76,11 +75,11 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_tabw->display_nav();
     //pv_tabw->init(cnn, pv_table_name)
     //pv_tabw->select();
-
+*/
     /// TESTS avec selectionsmodeles
-    pv_selection_model = new QItemSelectionModel(pv_model);
-    pv_tablew->set_selection_model(pv_selection_model);
-    pv_tabw->set_selection_model(pv_selection_model);
+//    pv_selection_model = new QItemSelectionModel(pv_model);
+//    pv_tablew->set_selection_model(pv_selection_model);
+//    pv_tabw->set_selection_model(pv_selection_model);
 
     pv_form = new db_form("test");
     pv_form->init(cnn, pv_table_name, "address_client");
@@ -119,6 +118,38 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
 
 }
 
+bool main_dialog::setup_table_view()
+{
+  if(pv_tablew == 0){
+    pv_tablew = new db_table_widget("test");
+    //pv_tablew->init(cnn, pv_table_name);
+    pv_tablew->set_model(pv_model);
+    pv_tablew->select();
+    pv_tablew->show();
+  }else{
+    delete pv_tablew;
+    pv_tablew = 0;
+  }
+  return true;
+}
+
+bool main_dialog::setup_tab_view()
+{
+  if(pv_tabw == 0){
+    pv_tabw = new db_tab_widget("test");
+    pv_tabw->set_model(pv_model);
+    pv_tabw->set_field_hidden("id_cli_PK");
+    pv_tabw->set_default_ui();
+    pv_tabw->display_nav();
+    pv_tabw->select();
+    pv_tabw->show();
+  }else{
+    delete pv_tabw;
+    pv_tabw = 0;
+  }
+  return true;
+}
+
 void main_dialog::display_text(const QString& txt)
 {
   std::cout << "Selection: " << txt.toStdString().c_str() << std::endl;
@@ -126,8 +157,10 @@ void main_dialog::display_text(const QString& txt)
 
 void main_dialog::open_tab()
 {
-  pv_tabw->show();
-  pv_tabw->select();
+  int i=0;
+  //for(i=0; i<1000; i++){
+    setup_tab_view();
+  //}
 }
 
 void main_dialog::open_search()
@@ -137,8 +170,7 @@ void main_dialog::open_search()
 
 void main_dialog::open_table()
 {
-  pv_tablew->show();
-  pv_tablew->select();
+  setup_table_view();
 }
 
 void main_dialog::open_form()

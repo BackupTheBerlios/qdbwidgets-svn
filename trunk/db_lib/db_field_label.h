@@ -26,9 +26,11 @@
 /// are stored in a "system" table
 
 #include <QString>
-#include <QSqlQuery>
+//#include <QSqlQuery>
 #include "db_connection.h"
 //class QSqlDatabase;
+
+class QSqlQuery;
 
 class db_field_label
 {

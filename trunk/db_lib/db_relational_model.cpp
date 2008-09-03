@@ -75,6 +75,7 @@ db_relational_model::~db_relational_model()
   if(pv_field_is_read_only != 0){
     delete[] pv_field_is_read_only;
   }
+  // NOTE: test child model commited.
 }
 
 bool db_relational_model::init(const db_connection *cnn, const QString &table_name)
@@ -124,7 +125,7 @@ bool db_relational_model::init(const db_connection *cnn, const QString &table_na
   );
 */
   emit sig_select_called();
-
+/*
 /// tests
 for(i=0; i<columnCount(); i++){
   std::cout << "Field: " << record(0).field(i).name().toStdString();
@@ -133,6 +134,7 @@ for(i=0; i<columnCount(); i++){
   }
   std::cout  << std::endl;
 }
+*/
   return true;
 }
 
@@ -161,22 +163,16 @@ void db_relational_model::set_parent_model(db_relational_model *model)
   pv_parent_model = model;
 }
 
-void db_relational_model::add_parent_relation_field(const QString &field_name)
-{
-  pv_as_parent_relation_fields << field_name;
-}
-
 void db_relational_model::set_relation(const db_relation &relation)
 {
   pv_as_parent_relation_fields = relation.get_parent_relation_fields();
-  pv_child_model->pv_as_child_relation_fields = relation.get_child_relation_fields();
+  //pv_child_model->pv_as_child_relation_fields = relation.get_child_relation_fields();
+  pv_child_model->set_as_child_relation_fields(relation.get_child_relation_fields());
 }
 
-void db_relational_model::add_child_relation_field(const QString &field_name)
+void db_relational_model::set_as_child_relation_fields(QStringList fields)
 {
-  if(pv_child_model != 0){
-    pv_child_model->pv_as_child_relation_fields << field_name; // !!?
-  }
+  pv_as_child_relation_fields = fields;
 }
 
 void db_relational_model::message_dialogs_enabled(bool enable)
@@ -186,9 +182,10 @@ void db_relational_model::message_dialogs_enabled(bool enable)
 
 void db_relational_model::current_row_changed(const QModelIndex &index)
 {
-/*  if(!submit()){
-  //if(isDirty(index)){
-  //std::cout << "Dirty!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+/*
+//  if(!submit()){
+  if(isDirty(index)){
+  std::cout << "Dirty!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     if((lastError().type() == QSqlError::ConnectionError)||(lastError().type() == QSqlError::TransactionError)){
       if(pv_message_dialogs_enabled){
         QString msg;
@@ -211,6 +208,7 @@ void db_relational_model::current_row_changed(const QModelIndex &index)
 */
   pv_current_index_is_valid = index.isValid();
   if(pv_child_model != 0){
+    child_data_commited();
     update_child_relations(index);
   }
 }
@@ -420,7 +418,7 @@ bool db_relational_model::current_index_is_valid()
 void db_relational_model::before_insert(QSqlRecord &rec)
 {
   int i=0;
-  std::cout << "********* Before inser call..." << std::endl;
+  //std::cout << "********* Before inser call..." << std::endl;
 /*
   if(!pv_parent_has_row){
     revert();
@@ -435,18 +433,18 @@ void db_relational_model::before_insert(QSqlRecord &rec)
   for(i=0; i<columnCount(); i++){
     std::cout << rec.field(i).name().toStdString() << std::endl;
     if(field_is_auto_value(i)/*&&(!rec.field(i).isGenerated())*/){
-      std::cout << "********** Auto filed: " << rec.field(i).name().toStdString() << std::endl;
+      //std::cout << "********** Auto filed: " << rec.field(i).name().toStdString() << std::endl;
       if(!rec.field(i).isGenerated()){
         std::cout << rec.field(i).name().toStdString() << ": *Not generated" << std::endl;
       }else{
-        std::cout << rec.field(i).name().toStdString() << ": OK generated" << std::endl;
+        //std::cout << rec.field(i).name().toStdString() << ": OK generated" << std::endl;
       }
     }
     if(field_is_read_only(i)){
-      std::cout << rec.field(i).name().toStdString() << ": Read Only" << std::endl;
+      //std::cout << rec.field(i).name().toStdString() << ": Read Only" << std::endl;
     }
     if(field_is_required(i)){
-      std::cout << rec.field(i).name().toStdString() << ": Required" << std::endl;
+      //std::cout << rec.field(i).name().toStdString() << ": Required" << std::endl;
     }
   }
   for(i=0; i<pv_as_child_relation_values.count(); i++){
@@ -514,6 +512,40 @@ bool db_relational_model::field_is_read_only(int col)
     return false;
   }
   return pv_field_is_read_only[col];
+}
+
+bool db_relational_model::child_data_commited()
+{
+  int row = 0, col = 0;
+  int ret = 0;
+  QString msg;
+  QModelIndex index;
+
+  if(pv_child_model == 0){
+    return true;
+  }
+
+  for(row=0; row < pv_child_model->rowCount(); row++){
+    for(col=0; col < pv_child_model->columnCount(); col++){
+      index = pv_child_model->create_index(row, col);
+      if(pv_child_model->isDirty(index)){
+        std::cout << "-->> Dirty!!!! index(" << row << ";" << col << ")" << std::endl;
+        if(pv_message_dialogs_enabled){
+
+          msg = tr("Follow child table contains data to save:\n"); 
+          msg += pv_child_model->get_user_table_name();
+          msg += tr("\nSave this records ?");
+          ret = QMessageBox::warning(0, pv_user_table_name, msg, QMessageBox::Ok | QMessageBox::Cancel);
+          if(ret == QMessageBox::Ok){
+            pv_child_model->submitAll();
+          }
+        }else{
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 // Mysql specific class - Bug 194595 - Corrected in Qt 4.4.0

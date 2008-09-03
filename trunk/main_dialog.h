@@ -59,6 +59,10 @@ class main_dialog : public QDialog
     void display_text(const QString& txt);
 
   private:
+    // Tests
+    bool setup_table_view();
+    bool setup_tab_view();
+
     db_relational_model *pv_model;
     db_relational_model *pv_child_model;
     db_relational_model *pv_sys_model;

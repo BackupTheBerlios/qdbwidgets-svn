@@ -60,7 +60,7 @@ int main(int argc, char **argv)
   }
 
   if(dbc != 0){
-    md.init(dbc, "client_TBL");
+    md.init(dbc, "client_tbl");
     md.show();
   }else{
     return 1;

@@ -24,6 +24,7 @@
 #include <QSqlRecord>
 #include <QSqlError>
 #include <QVariant>
+#include <QStringList>
 //#include <QSqlDatabase>
 
 db_field_label::db_field_label()
@@ -102,8 +103,7 @@ QString db_field_label::get_label(const QString &field_name)
     //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": No row found" << std::endl;
     return field_name;
   }
-  QSqlRecord rec = pv_query->record();
-  return rec.value(0).toString();
+  return pv_query->record().value(0).toString();
 }
 
 void db_field_label::tests()
@@ -145,7 +145,7 @@ bool db_field_label::create_sys_table(const QString & sys_table_name)
             " db_table_field_label VARCHAR(50), PRIMARY KEY(db_table_name, db_table_field));";
     if(!pv_query->exec(pv_SQL)){
           std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": SQL error by:\n\t" << pv_SQL.toStdString().c_str() << std::endl;
-          std::cerr << pv_query->lastError().text().toStdString().c_str() << std::endl;
+          std::cerr << pv_query->lastError().text().toStdString() << std::endl;
           return false;
     }
   }
@@ -154,20 +154,15 @@ bool db_field_label::create_sys_table(const QString & sys_table_name)
 
 bool db_field_label::table_exists(const QString &table_name)
 {
-  // See if the table exists
-  pv_SQL = "SELECT * FROM " + pv_sys_table_name + ";";
-  //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": execute: " << pv_SQL.toStdString().c_str() << std::endl;
-  if(!pv_query->exec(pv_SQL)){
-	std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": SQL error by:\n\t" << pv_SQL.toStdString().c_str() << std::endl;
-	std::cerr << pv_query->lastError().text().toStdString().c_str() << std::endl;
-	return false;
+  QStringList tables_list;
+  int index = 0;
+
+  tables_list = pv_cnn->get_tables();
+  index = tables_list.indexOf(table_name);
+  if(index < 0){
+    return false;
   }
-  if(row_count(pv_SQL) >= 1){
-        //std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": found" << std::endl;
-	return true;
-  }
-  std::cerr << pv_cnn_cname << "->db_field_label::" << __FUNCTION__ << ": not found" << std::endl;
-  return false;
+  return true;
 }
 
 bool db_field_label::entry_exists(const QString &field_name)

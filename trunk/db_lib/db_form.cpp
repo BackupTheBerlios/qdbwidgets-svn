@@ -39,29 +39,31 @@ bool db_form::init(const db_connection *cnn, const QString &parent_table_name, c
   pv_vlayout = new QVBoxLayout(this);
 
   /// Models
-  pv_model = new db_relational_model(cnn, "client_TBL",this);
+  pv_model = new db_relational_model(cnn, "client_tbl",this);
   pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
-  pv_child_model = new db_relational_model(cnn, "address_client",this);
+  pv_child_model = new db_relational_model(cnn, "adresse_client_tbl",this);
   pv_child_model->setEditStrategy(QSqlTableModel::OnRowChange);
-  pv_sub_child_model = new db_relational_model(cnn, "detail_adresse_cli",this);
-  pv_sub_child_model->setEditStrategy(QSqlTableModel::OnRowChange);
+  //pv_sub_child_model = new db_relational_model(cnn, "detail_adresse_cli",this);
+  //pv_sub_child_model->setEditStrategy(QSqlTableModel::OnRowChange);
 
   pv_model->set_child_model(pv_child_model);
-  pv_child_model->set_child_model(pv_sub_child_model);
+  //pv_child_model->set_child_model(pv_sub_child_model);
 
   /// relation
   db_relation relation(parent_table_name);
-  relation.add_parent_relation_field("id_cli_PK");
-  relation.add_parent_relation_field("id_nom_PK");
-  relation.add_child_relation_field("id_cli_FK");
-  relation.add_child_relation_field("nom_cli_FK");
+  relation.add_parent_relation_field("cli_cod_pk");
+  //relation.add_parent_relation_field("id_nom_PK");
+  relation.add_child_relation_field("adr_cli_cod_fk");
+  //relation.add_child_relation_field("nom_cli_FK");
   pv_model->set_relation(relation);
 
   /// relation
+/*
   db_relation relation2("address_client");
   relation2.add_parent_relation_field("id_add_PK");
   relation2.add_child_relation_field("id_adresse_FK");
   pv_child_model->set_relation(relation2);
+*/
 
   /// views
   //pv_parent = new db_table_widget("test", this);
@@ -79,14 +81,14 @@ bool db_form::init(const db_connection *cnn, const QString &parent_table_name, c
   pv_vlayout->addWidget(pv_child);
   pv_child->set_model(pv_child_model);
   //pv_child->set_field_hidden("id_cli_FK");
-  pv_child->set_fields_hidden(relation.get_child_relation_fields());
+  //pv_child->set_fields_hidden(relation.get_child_relation_fields());
   //pv_child->hide_field("id_cli_FK");
   //pv_child->hide_field("nom_cli_FK");
-
+/*
   pv_s_child = new db_table_widget("test", this);
   pv_vlayout->addWidget(pv_s_child);
   pv_s_child->set_model(pv_sub_child_model);
-
+*/
   pv_hlayout = new QHBoxLayout(this);
   pv_vlayout->addLayout(pv_hlayout);
 /*

@@ -55,16 +55,14 @@ class db_relational_model : public QSqlRelationalTableModel
   void set_parent_model(db_relational_model *model);
   /**
     Relation management:
-      1: Define fileds in the relation, with add_child_relation_field() and add_child_relation_field()
+      1: Use set_relation() to store relations fields (contained in a db_relation)
       2: connect the signal currentRowChanged() from selectionModel to slot current_row_changed()
   **/
-  /// add a filed to relation concerned by parent table
-  void add_parent_relation_field(const QString &field_name);
-  /// add a filed to relation concerned by child table
-  void add_child_relation_field(const QString &field_name);
   /// Set a db_relation containing needed data
   void set_relation(const db_relation &relation);
-  /// if enabled, the model communicates error/ ask question directly (default: enabled)
+  // se
+  void set_as_child_relation_fields(QStringList fields);
+  /// if enabled, the model communicates error/ ask question directly (default: enabled, disabled: not tested!)
   void message_dialogs_enabled(bool enable);
   /// Helper function: checks child rows before delete
   bool delete_row(int row);
@@ -86,6 +84,7 @@ class db_relational_model : public QSqlRelationalTableModel
   bool has_child_model();
   bool has_parent_model();
   bool current_index_is_valid();
+  // Needed, because createIndex is protected
   QModelIndex create_index(int row, int column);
   int row_count();
   QString get_text_data(int row, int column);
@@ -129,6 +128,7 @@ class db_relational_model : public QSqlRelationalTableModel
   bool *pv_field_is_read_only;
   bool init_field_is_auto_value(int col);
   bool pv_current_index_is_valid;
+  bool child_data_commited();
 };
 
 // Have a problem to test if a field is auot_increment with Mysql.
