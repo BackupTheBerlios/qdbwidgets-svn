@@ -59,7 +59,7 @@ class db_relational_model : public QSqlRelationalTableModel
       2: connect the signal currentRowChanged() from selectionModel to slot current_row_changed()
   **/
   /// Set a db_relation containing needed data
-  void set_relation(const db_relation &relation);
+  bool set_relation(const db_relation &relation);
   // se
   void set_as_child_relation_fields(QStringList fields);
   /// if enabled, the model communicates error/ ask question directly (default: enabled, disabled: not tested!)

@@ -56,14 +56,14 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_model = new db_relational_model(cnn, pv_table_name, 0);
     //pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
     /// tests
-    pv_child_model = new db_relational_model(cnn, "adresse_client",this);
+    pv_child_model = new db_relational_model(cnn, "adresse_client_tbl",this);
     pv_model->set_child_model(pv_child_model);
   /// relation
   db_relation relation(pv_table_name);
-  relation.add_parent_relation_field("id_cli_PK");
-  relation.add_parent_relation_field("id_nom_PK");
-  relation.add_child_relation_field("id_cli_FK");
-  relation.add_child_relation_field("nom_cli_FK");
+  relation.add_parent_relation_field("cli_cod_pk");
+  //relation.add_parent_relation_field("id_nom_PK");
+  relation.add_child_relation_field("adr_cli_cod_fk");
+  //relation.add_child_relation_field("nom_cli_FK");
   pv_model->set_relation(relation);
 
 
@@ -101,8 +101,8 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     pv_queryw->init(cnn, "SELECT * FROM " + pv_table_name + "; ");
 
     // Tests html
-    pv_html = new db_html_engine;
-    pv_html->set_model(pv_model);
+    pv_html = new db_html_engine();
+    pv_html->init(cnn, table_name);
 
     connect(pb_tabw, SIGNAL(clicked()), this, SLOT(open_tab()));
     connect(pb_tablew, SIGNAL(clicked()), this, SLOT(open_table()));
@@ -191,6 +191,5 @@ void main_dialog::open_systable()
 
 void main_dialog::tests()
 {
-  pv_model->select();
   pv_html->tests();
 }

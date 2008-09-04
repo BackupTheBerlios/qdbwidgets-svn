@@ -1,19 +1,23 @@
 #include "db_html_engine.h"
 #include <iostream>
+#include "db_relation.h"
 
 #include <QTextDocument>
 #include <QTextEdit>
 #include <QFile>
 #include <QTextStream>
+#include <QModelIndex>
 
 db_html_engine::db_html_engine()
 {
-  pv_child_model = 0;
-  pv_model = 0;
+  //pv_child_model = 0;
+  pv_table_model = 0;
+  pv_cnn = 0;
+  pv_html_view = new db_html_view;
   pv_txt_edit = new QTextEdit;
   pv_doc = new QTextDocument;
 }
-
+/*
 bool db_html_engine::set_model(const db_relational_model *model)
 {
   int i=0;
@@ -34,11 +38,37 @@ bool db_html_engine::set_model(const db_relational_model *model)
 
   return true;
 }
+*/
+
+
+bool db_html_engine::init(const db_connection *cnn, const QString &table_name)
+{
+  pv_cnn = cnn;
+  pv_table_model = new db_relational_model(pv_cnn, table_name);
+  pv_table_model->select();
+  pv_html_view->set_model(pv_table_model);
+  return true;
+}
 
 void db_html_engine::tests()
 {
   int i=0;
   QString html;
+
+  /// tests: child
+  db_relational_model *child_model = new db_relational_model(pv_cnn, "adresse_client_tbl");
+  db_relation relation(pv_table_model->tableName());
+
+  relation.add_parent_relation_field("cli_cod_pk");
+  relation.add_child_relation_field("adr_cli_cod_fk");
+
+  pv_table_model->set_child_model(child_model);
+  pv_table_model->set_relation(relation);
+
+  db_html_view child_view;
+  child_view.set_model(child_model);
+
+  //pv_table_model->setFilter("cli_cod_pk='RSR'");
 
   html = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n";
   html += "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n";
@@ -46,17 +76,37 @@ void db_html_engine::tests()
   html += "<h1>Titre</h1>\n";
   html += "<html>\n";
 
-  html += get_parent_child_view(-1, false);
+ // html += get_parent_child_view(-1, false);
+  //html += pv_html_view->get_column_view(true);
+ // html += pv_html_view->get_tab_view(true);
+
+  html += "<table border=1>\n";
+  //html += pv_html_view->get_column_headers();
+
+  for(i=0; i<pv_table_model->rowCount(); i++){
+    QModelIndex index = pv_table_model->create_index(i, 0);
+    //html += pv_html_view->get_column_row(i);
+    html += pv_html_view->get_tab_row(i, false);
+    pv_table_model->current_row_changed(index);
+    html += "</table>\n";
+    html += child_view.get_column_view(true);
+    html += "<table border=1>\n";
+  }
+
+  html += "</table>\n";
 
   html += "</html>\n";
 
   write_file("test.html", html);
- // std::cout << html.toStdString() << std::endl;
+  std::cout << html.toStdString() << std::endl;
   pv_doc->setHtml(html);
   pv_txt_edit->setDocument(pv_doc);
   pv_txt_edit->show();
+
+  delete child_model;
 }
 
+/*
 QString db_html_engine::get_header(int column, bool in_child)
 {
   QString html, txt;
@@ -72,7 +122,9 @@ QString db_html_engine::get_header(int column, bool in_child)
   html += "</td>";
   return html;
 }
+*/
 
+/*
 QString db_html_engine::get_data(int row, int column, bool in_child)
 {
   QString html;
@@ -88,7 +140,9 @@ QString db_html_engine::get_data(int row, int column, bool in_child)
   html += "</td>";
   return html;
 }
+*/
 
+/*
 QString db_html_engine::get_column_view(int row, bool with_headers, bool in_child)
 {
   int i=0, y=0, headers_count = 0, rows_count = 0;
@@ -132,7 +186,9 @@ QString db_html_engine::get_column_view(int row, bool with_headers, bool in_chil
   html += "</table>\n";
   return html;
 }
+*/
 
+/*
 QString db_html_engine::get_tab_view(int row, bool with_headers, bool in_child)
 {
   int i=0, y=0, headers_count = 0, rows_count = 0;
@@ -176,7 +232,9 @@ QString db_html_engine::get_tab_view(int row, bool with_headers, bool in_child)
   html += "</table>\n";
   return html;
 }
+*/
 
+/*
 QString db_html_engine::get_parent_child_view(int row = -1, bool with_headers)
 {
   int i=0, y=0;
@@ -200,6 +258,7 @@ QString db_html_engine::get_parent_child_view(int row = -1, bool with_headers)
   //html += "</table>\n";
   return html;
 }
+*/
 
 bool db_html_engine::write_file(QString path, QString txt)
 {

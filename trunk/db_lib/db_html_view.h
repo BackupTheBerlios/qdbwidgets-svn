@@ -18,44 +18,34 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
-#ifndef DB_HTML_ENGINE_H
-#define DB_HTML_ENGINE_H
+#ifndef DB_HTML_VIEW_H
+#define DB_HTML_VIEW_H
 
 #include "db_relational_model.h"
-#include "db_connection.h"
-#include "db_html_view.h"
 
 #include <QString>
 #include <QStringList>
-
 
 class QFile;
 class QTextEdit;
 class QTextDocument;
 
-class db_html_engine
+class db_html_view
 {
  public:
-  db_html_engine();
-  bool init(const db_connection *cnn, const QString &table_name);
-  //QString get_column_view(int row = -1, bool with_headers = true, bool in_child = false);
-  //QString get_tab_view(int row = -1, bool with_headers = true, bool in_child = false);
-  //QString get_parent_child_view(int row = -1, bool with_headers = true);
-  void tests();
+  db_html_view();
+  bool set_model(const db_relational_model *model);
+  QString get_column_row(int row);
+  QString get_column_headers();
+  QString get_column_view(bool with_headers = true);
+  QString get_tab_row(int row, bool with_headers = true);
+  QString get_tab_view(bool with_headers = true);
 
  private:
-  //QString get_header(int column, bool in_child = false);
-  //QString get_data(int row, int column, bool in_child = false);
+  QString get_header(int column);
+  QString get_data(int row, int column);
   db_relational_model *pv_table_model;
-  db_connection *pv_cnn;
-  db_html_view *pv_html_view;
-  //db_relational_model *pv_child_model;
   QStringList pv_headers;
-  //QStringList pv_child_headers;
-  bool write_file(QString path, QString txt);
-  // tests
-  QTextEdit *pv_txt_edit;
-  QTextDocument *pv_doc;
 };
 
 #endif

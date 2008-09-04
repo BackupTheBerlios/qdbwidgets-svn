@@ -163,11 +163,16 @@ void db_relational_model::set_parent_model(db_relational_model *model)
   pv_parent_model = model;
 }
 
-void db_relational_model::set_relation(const db_relation &relation)
+bool db_relational_model::set_relation(const db_relation &relation)
 {
+  if(pv_child_model == 0){
+    std::cerr << "db_relational_model::" << __FUNCTION__ << ": child model is not set" << std::endl;
+    return false;
+  }
   pv_as_parent_relation_fields = relation.get_parent_relation_fields();
   //pv_child_model->pv_as_child_relation_fields = relation.get_child_relation_fields();
   pv_child_model->set_as_child_relation_fields(relation.get_child_relation_fields());
+  return true;
 }
 
 void db_relational_model::set_as_child_relation_fields(QStringList fields)
