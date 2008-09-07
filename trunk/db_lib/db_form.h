@@ -25,6 +25,7 @@
 #include "db_tab_widget.h"
 #include "db_query_widget.h"
 #include "db_relational_model.h"
+#include "db_relation.h"
 
 #include <QWidget>
 #include <QString>
@@ -36,29 +37,27 @@ class QModelIndex;
 class QPushButton;
 class QVBoxLayout;
 class QHBoxLayout;
+class QTabWidget;
 
 class db_form : public QWidget
 {
  Q_OBJECT
   public:
     db_form(const QString &name, QWidget *parent = 0);
-    bool init(const db_connection *cnn, const QString &parent_table_name, const QString &child_table_name);
+    bool init(const db_connection *cnn, const QString &parent_table_name/*, const QString &child_table_name*/);
+    bool add_child_table(const db_relation &relation);
     void select();
 
   private slots:
-
+    void tab_changed(int index);
   private:
+    db_connection *pv_cnn;
     db_relational_model *pv_model;
-    db_relational_model *pv_child_model;
-    db_relational_model *pv_sub_child_model;
-    db_tab_widget *pv_parent;
-    //db_table_widget *pv_parent;
-    db_table_widget *pv_child;
-    //db_tab_widget *pv_child;
-    db_table_widget *pv_s_child;
+    QList<db_relational_model*> pv_child_models;
+    QList<db_table_widget*> pv_child_views;
+    db_tab_widget *pv_parent_view;
     QVBoxLayout *pv_vlayout;
-    QHBoxLayout *pv_hlayout;
-    //const db_connection *pv_cnn;        // Pointer to the connection instance
+    QTabWidget *pv_tabs;
 };
 
 #endif

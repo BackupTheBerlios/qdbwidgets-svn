@@ -46,7 +46,7 @@ int main(int argc, char **argv)
   dbc->set_db_name("qwidget_test.db");
 */
   dbc = new db_connection("QMYSQL", "test");
-  //dbc->set_db_name("scandyna");
+  dbc->set_db_name("scandyna");
   dbc->set_login("scandyna","");
 
   db_connection_dlg dbc_dlg("Connexion");
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
   }
 
   if(dbc != 0){
-    md.init(dbc, "client_tbl");
+    md.init(dbc, "societe_tbl");
     md.show();
   }else{
     return 1;

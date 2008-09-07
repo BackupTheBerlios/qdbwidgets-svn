@@ -27,10 +27,12 @@
 
 #include <QString>
 #include <QStringList>
+#include <QList>
 
 
 class QFile;
 class QTextEdit;
+class QTextBrowser;
 class QTextDocument;
 
 class db_html_engine
@@ -41,12 +43,20 @@ class db_html_engine
   //QString get_column_view(int row = -1, bool with_headers = true, bool in_child = false);
   //QString get_tab_view(int row = -1, bool with_headers = true, bool in_child = false);
   //QString get_parent_child_view(int row = -1, bool with_headers = true);
+  /// Add a child table. Give the relation, a list of hidden fields
+  /// If pks_hidden is true, the primary keys of child will not be displayed
+  bool add_child_table(const db_relation &relation, db_html_view_attributes attributes,
+                        const QStringList hidden_fields = QStringList(), 
+                        bool pks_hidden = false);
+  QString get_data();
   void tests();
 
  private:
   //QString get_header(int column, bool in_child = false);
   //QString get_data(int row, int column, bool in_child = false);
   db_relational_model *pv_table_model;
+  QList<db_relational_model*> pv_child_models;
+  QList<db_html_view*> pv_child_views;
   db_connection *pv_cnn;
   db_html_view *pv_html_view;
   //db_relational_model *pv_child_model;
@@ -55,6 +65,7 @@ class db_html_engine
   bool write_file(QString path, QString txt);
   // tests
   QTextEdit *pv_txt_edit;
+  QTextBrowser *pv_txt_browser;
   QTextDocument *pv_doc;
 };
 

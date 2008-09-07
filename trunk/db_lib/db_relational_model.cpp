@@ -41,13 +41,13 @@ db_relational_model::db_relational_model(const db_connection *cnn, const QString
   pv_field_is_auto_value = 0;
   pv_field_is_required = 0;
   pv_field_is_read_only = 0;
-  pv_child_model = 0;
+  //pv_child_model = 0;
   pv_parent_model = 0;
   pv_current_index_is_valid = false;
   //pv_row_to_insert = -1;
   pv_message_dialogs_enabled = true;
-  init(cnn, table_name);
   pv_parent_has_row = false;
+  pv_model_is_valid = init(cnn, table_name);
 }
 
 db_relational_model::db_relational_model(QObject * parent, QSqlDatabase db)
@@ -57,7 +57,7 @@ db_relational_model::db_relational_model(QObject * parent, QSqlDatabase db)
   pv_field_is_required = 0;
   pv_field_is_read_only = 0;
   pv_message_dialogs_enabled = true;
-  pv_child_model = 0;
+  //pv_child_model = 0;
   pv_parent_model = 0;
   pv_current_index_is_valid = false;
   //pv_row_to_insert = -1;
@@ -85,6 +85,16 @@ bool db_relational_model::init(const db_connection *cnn, const QString &table_na
   // Init the labels
   if(!pv_label.init(cnn, table_name)){
     std::cerr << "db_relational_model::" << __FUNCTION__ << ": pv_label.init() failed" << std::endl;
+    pv_model_is_valid = false;
+    return false;
+  }
+  // See if table exists
+  QStringList lst;
+  lst = cnn->get_db().tables();
+
+  if(cnn->get_db().tables().indexOf(table_name) < 0){
+    std::cerr << "db_relational_model::" << __FUNCTION__ << ": unable to find tabl:" << table_name.toStdString() << std::endl;
+    pv_model_is_valid = false;
     return false;
   }
   setTable(table_name);
@@ -135,7 +145,13 @@ for(i=0; i<columnCount(); i++){
   std::cout  << std::endl;
 }
 */
+  pv_model_is_valid = true;
   return true;
+}
+
+bool db_relational_model::is_valid()
+{
+  return pv_model_is_valid;
 }
 
 void db_relational_model::set_user_headers()
@@ -147,15 +163,28 @@ void db_relational_model::set_user_headers()
     lst.insert(i, headerData(i, Qt::Horizontal).toString());
     setHeaderData(i , Qt::Horizontal, pv_label.get_label(lst.at(i)));
   }
+
+  for(i=0; i < pv_child_models.size(); i++){
+    pv_child_models.at(i)->set_user_headers();
+  }
+/*
   if(pv_child_model != 0){
     pv_child_model->set_user_headers();
   }
+*/
 }
 
-void db_relational_model::set_child_model(db_relational_model *model)
+bool db_relational_model::add_child_model(db_relational_model *model)
 {
-  pv_child_model = model;
-  pv_child_model->set_parent_model(this);
+  if(!model->is_valid()){
+    std::cerr << "db_relational_model::" << __FUNCTION__ << ": given child model is not valid" << std::endl;
+    return false;
+  }
+  pv_child_models.append(model);
+  if(pv_child_models.last() != 0){
+    pv_child_models.last()->set_parent_model(this);
+  }
+  return true;
 }
 
 void db_relational_model::set_parent_model(db_relational_model *model)
@@ -163,16 +192,31 @@ void db_relational_model::set_parent_model(db_relational_model *model)
   pv_parent_model = model;
 }
 
+// NOTE: the parent relation fields must allways be the same
+// (there are the PK's of the parent table)
 bool db_relational_model::set_relation(const db_relation &relation)
 {
+  int i=0;
+/*
   if(pv_child_model == 0){
     std::cerr << "db_relational_model::" << __FUNCTION__ << ": child model is not set" << std::endl;
     return false;
   }
+*/
   pv_as_parent_relation_fields = relation.get_parent_relation_fields();
-  //pv_child_model->pv_as_child_relation_fields = relation.get_child_relation_fields();
-  pv_child_model->set_as_child_relation_fields(relation.get_child_relation_fields());
-  return true;
+
+  // Search the child model conecrned for this relation
+  for(i=0; i < pv_child_models.size(); i++){
+    if(pv_child_models.at(i)->tableName() == relation.get_child_table()){
+      pv_child_models.at(i)->set_as_child_relation_fields(relation.get_child_relation_fields());
+      return true;
+    }
+  }
+  // No child found
+  std::cerr << "db_relational_model::" << __FUNCTION__ << ": child model is not set" << std::endl;
+  return false;
+
+//  pv_child_model->set_as_child_relation_fields(relation.get_child_relation_fields());
 }
 
 void db_relational_model::set_as_child_relation_fields(QStringList fields)
@@ -212,16 +256,44 @@ void db_relational_model::current_row_changed(const QModelIndex &index)
   }
 */
   pv_current_index_is_valid = index.isValid();
-  if(pv_child_model != 0){
+//  if(pv_child_model != 0){ /// NOTE don't test here ?
     child_data_commited();
     update_child_relations(index);
-  }
+//  }
 }
 
+/// TODO: all childs...
 bool db_relational_model::delete_row(int row)
 {
-  int ret = 0;
+  int i = 0, ret = 0;
   QString msg;
+
+  //if(pv_child_model != 0){
+  for(i=0; i < pv_child_models.size(); i++){
+    if(pv_child_models.at(i)->rowCount() > 0){
+      std::cout << "Child rows: " << pv_child_models.at(i)->rowCount() << std::endl;
+      if(pv_message_dialogs_enabled){
+        msg = tr("Follow child table contains data:\n"); 
+        msg += pv_child_models.at(i)->get_user_table_name();
+        msg += tr("\nDelete all ?");
+        ret = QMessageBox::warning(0, pv_user_table_name, msg, QMessageBox::Ok | QMessageBox::Cancel);
+        if(ret == QMessageBox::Cancel){
+          //revertAll();
+          return false;
+        }else if(!delete_child_rows()){
+          msg = tr("Child delete failed !");
+          msg += tr("\n\nReported error:\n");
+          msg += pv_child_models.at(i)->lastError().text();
+          QMessageBox::critical(0, pv_user_table_name, msg);
+          return false;
+        }
+      }else{
+        return false; // Dialog diseabled
+      }
+    }
+  }
+
+/*
   if(pv_child_model != 0){
     if(pv_child_model->rowCount() > 0){
       std::cout << "Child rows: " << pv_child_model->rowCount() << std::endl;
@@ -245,15 +317,32 @@ bool db_relational_model::delete_row(int row)
       }
     }
   }
+*/
   if(!removeRow(row)){
     return false;
   }
   return true;
 }
-
+/// TODO: all childs...
 bool db_relational_model::delete_child_rows()
 {
-  int row_count=0;
+  int i = 0, row_count=0;
+
+  for(i=0; i < pv_child_models.size(); i++){
+    row_count = pv_child_models.at(i)->rowCount();
+    //std::cout << "Child row to delete: " << row_count << std::endl;
+    while(pv_child_models.at(i)->has_rows()){
+      if(!pv_child_models.at(i)->delete_row(0)){
+        std::cerr << "ERROR while deleting row  "  << std::endl;
+        return false;
+      }
+      QModelIndex index = createIndex(0, 0);
+      current_row_changed(index);
+    }
+  }
+
+
+/*
   if(pv_child_model != 0){
     row_count = pv_child_model->rowCount();
     std::cout << "Child row to delete: " << row_count << std::endl;
@@ -266,6 +355,7 @@ bool db_relational_model::delete_child_rows()
       current_row_changed(index);
     }
   }
+*/
   return true;
 }
 
@@ -345,11 +435,11 @@ bool db_relational_model::add_filter(const QString &field_name, QString val)
 
 void db_relational_model::update_relations(const QStringList &relations_values)
 {
+  int i=0;
   emit sig_before_select();
   clear_filter();
   pv_as_child_relation_values = relations_values;
   // For each field, add criteria to the filter
-  int i=0;
  for(i=0; i<pv_as_child_relation_values.count(); i++){
     //std::cout << "db_relational_model::" << __FUNCTION__ << ": field: " << pv_as_child_relation_fields.value(i).toStdString() << std::endl;
     if(!add_filter(pv_as_child_relation_fields.value(i), pv_as_child_relation_values.value(i))){
@@ -359,17 +449,43 @@ void db_relational_model::update_relations(const QStringList &relations_values)
   }
   select();
   emit sig_select_called();
-  // We can have another child. So we act as parent of this other child
+  // We can have another childs. So we act as parent of this other child
   // So, we select the first row, then take the index.
+  QModelIndex index = createIndex(0, 0);
+  update_child_relations(index);
+/*
   if(pv_child_model != 0){
     QModelIndex index = createIndex(0, 0);
     update_child_relations(index);
   }
+*/
 }
 
+/// TODO: all childs...
 void db_relational_model::update_child_relations(const QModelIndex &index)
 {
+  int i = 0;
   QStringList relations_values;
+
+  for(i=0; i < pv_child_models.size(); i++){
+    if(index.isValid()){
+      // Data as parent
+      QSqlRecord rec = record(index.row());
+      int i=0;
+      for(i=0; i<pv_as_parent_relation_fields.count(); i++){
+        //std::cout << "Field: " << pv_as_parent_relation_fields.at(i).toStdString() << std::endl;
+        relations_values << rec.value(pv_as_parent_relation_fields.at(i)).toString();
+      }
+    }else{
+      int i=0;
+      for(i=0; i<pv_as_parent_relation_fields.count(); i++){
+        relations_values << "-1";
+      }
+    }
+    pv_child_models.at(i)->update_relations(relations_values);
+  }
+
+/*
   if(pv_child_model != 0){
     if(index.isValid()){
       // Data as parent
@@ -387,6 +503,7 @@ void db_relational_model::update_child_relations(const QModelIndex &index)
     }
     pv_child_model->update_relations(relations_values);
   }
+*/
 }
 
 bool db_relational_model::parent_has_valid_index()
@@ -394,11 +511,17 @@ bool db_relational_model::parent_has_valid_index()
   return pv_parent_model->current_index_is_valid();
 }
 
+/// TODO: all childs...
 bool db_relational_model::has_child_model()
 {
+  if(pv_child_models.size() > 0){
+    return true;
+  }
+/*
   if(pv_child_model != 0){
     return true;
   }
+*/
   return false;
 }
 
@@ -468,10 +591,19 @@ QString db_relational_model::get_text_data(int row, int column)
   current_row_changed(index);
   return data(index).toString();
 }
-
-db_relational_model *db_relational_model::get_child_model()
+/// TODO: all childs...
+db_relational_model *db_relational_model::get_child_model(const QString &table_name)
 {
-  return pv_child_model;
+  int i = 0;
+
+  for(i=0; i < pv_child_models.size(); i++){
+    if(pv_child_models.at(i)->tableName() == table_name){
+      return pv_child_models.at(i);
+    }
+  }
+
+  return 0;
+//  return pv_child_model;
 }
 
 /*
@@ -519,24 +651,52 @@ bool db_relational_model::field_is_read_only(int col)
   return pv_field_is_read_only[col];
 }
 
+/// TODO: all childs...
 bool db_relational_model::child_data_commited()
 {
   int row = 0, col = 0;
-  int ret = 0;
+  int i = 0, ret = 0;
   QString msg;
   QModelIndex index;
 
+  if(pv_child_models.size() <= 0){
+    return true;
+  }
+/*
   if(pv_child_model == 0){
     return true;
   }
+*/
 
+  for(i=0; i < pv_child_models.size(); i++){
+    for(row=0; row < pv_child_models.at(i)->rowCount(); row++){
+      for(col=0; col < pv_child_models.at(i)->columnCount(); col++){
+        index = pv_child_models.at(i)->create_index(row, col);
+        if(pv_child_models.at(i)->isDirty(index)){
+          std::cout << "-->> Dirty!!!! index(" << row << ";" << col << ")" << std::endl;
+          if(pv_message_dialogs_enabled){
+            msg = tr("Follow child table contains data to save:\n"); 
+            msg += pv_child_models.at(i)->get_user_table_name();
+            msg += tr("\nSave this records ?");
+            ret = QMessageBox::warning(0, pv_user_table_name, msg, QMessageBox::Ok | QMessageBox::Cancel);
+            if(ret == QMessageBox::Ok){
+              pv_child_models.at(i)->submitAll();
+            }
+          }else{
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+/*
   for(row=0; row < pv_child_model->rowCount(); row++){
     for(col=0; col < pv_child_model->columnCount(); col++){
       index = pv_child_model->create_index(row, col);
       if(pv_child_model->isDirty(index)){
         std::cout << "-->> Dirty!!!! index(" << row << ";" << col << ")" << std::endl;
         if(pv_message_dialogs_enabled){
-
           msg = tr("Follow child table contains data to save:\n"); 
           msg += pv_child_model->get_user_table_name();
           msg += tr("\nSave this records ?");
@@ -550,6 +710,7 @@ bool db_relational_model::child_data_commited()
       }
     }
   }
+*/
   return true;
 }
 

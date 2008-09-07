@@ -30,11 +30,33 @@ class QFile;
 class QTextEdit;
 class QTextDocument;
 
+class db_html_view_attributes
+{
+ public:
+  db_html_view_attributes();
+  void set_left_margin(int px);
+  void set_top_margin(int px);
+  QString get_left_margin();
+  QString get_top_margin();
+
+ private:
+  QString pv_left_margin;
+  QString pv_top_margin;
+};
+
 class db_html_view
 {
  public:
   db_html_view();
+  /// Set hidden field
+  void set_field_hidden(const QString &field_name);
+  void set_fields_hidden(const QStringList &fileds_name);
+  /// Set the primary keys hidden
+  void set_pks_hidden();
+  bool field_is_hidden(int col);
   bool set_model(const db_relational_model *model);
+  void set_attributes(db_html_view_attributes attributes);
+  QString get_user_table_name();
   QString get_column_row(int row);
   QString get_column_headers();
   QString get_column_view(bool with_headers = true);
@@ -46,6 +68,9 @@ class db_html_view
   QString get_data(int row, int column);
   db_relational_model *pv_table_model;
   QStringList pv_headers;
+  QList<int> pv_hidden_fields;
+  db_html_view_attributes pv_attributes;
 };
+
 
 #endif

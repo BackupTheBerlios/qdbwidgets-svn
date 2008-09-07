@@ -103,6 +103,7 @@ db_connection_dlg::db_connection_dlg(const QString & name, QWidget *parent)
   lb_connect_status = new QLabel(tr("No database connection set"));
   pv_vright_layout->addWidget(lb_connect_status);
   pb_connect = new QPushButton(tr("Connect"));
+  pb_connect->setDefault(true);
   pv_vleft_layout->addWidget(pb_connect);
   connect(pb_connect, SIGNAL(clicked()), this, SLOT(connect_db()) );
   // disconnect
@@ -136,10 +137,13 @@ bool db_connection_dlg::set_dbc(const db_connection *dbc)
   cb_db_driver->setItemText(0, dbc->get_driver_type());
   if(cb_db_driver->currentText() == "QSQLITE"){
     le_db_file->setText(pv_dbc->get_db_name());
+  }else{
+    le_pass->setFocus();
   }
   le_host->setText( pv_dbc->get_host_name());
   le_port->setText(pv_dbc->get_port());
   le_user->setText(pv_dbc->get_login_user());
+  db_choosed(dbc->get_driver_type());
 }
 
 db_connection *db_connection_dlg::get_dbc() const
@@ -290,10 +294,14 @@ void db_connection_dlg::connect_db()
     return;
   }
   // Ok, we should be connected here
- cb_db->addItems(pv_dbc->get_databases());
- if(cb_db->count() > 0){
+  cb_db->addItems(pv_dbc->get_databases());
+  if(cb_db->count() > 0){
     pb_use_db->setEnabled(true);
- }
+  }
+  if(!pv_dbc->get_db_name().isEmpty()){
+    cb_db->setItemText(0, pv_dbc->get_db_name());
+    //connect_db();
+  }
 }
 
 void db_connection_dlg::disconnect_db()

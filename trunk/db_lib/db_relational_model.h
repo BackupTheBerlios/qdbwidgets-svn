@@ -42,15 +42,17 @@ class db_relational_model : public QSqlRelationalTableModel
  public:
   /// Create the model for given connection and table name
   db_relational_model(const db_connection *cnn, const QString &table_name, QObject * parent = 0);
-  /// If you use this contructor, don't forget to call init()
+ /// If you use this contructor, don't forget to call init()
   db_relational_model(QObject * parent = 0, QSqlDatabase db = QSqlDatabase());
   ~db_relational_model();
   /// Call this init function if you use default constructor
   bool init(const db_connection *cnn, const QString &table_name);
+  /// Test if model succesfull initialized (usefull if you don't use init() )
+  bool is_valid();
   /// Set user friendly headers (found with db_field_label)
   void set_user_headers();
   /// Set given model the child model
-  void set_child_model(db_relational_model *model);
+  bool add_child_model(db_relational_model *model);
   // This is automatically called - don't use
   void set_parent_model(db_relational_model *model);
   /**
@@ -59,6 +61,8 @@ class db_relational_model : public QSqlRelationalTableModel
       2: connect the signal currentRowChanged() from selectionModel to slot current_row_changed()
   **/
   /// Set a db_relation containing needed data
+  /// NOTE: the parent relation fields must allways be the same
+  /// (there are the PK's of the parent table)
   bool set_relation(const db_relation &relation);
   // se
   void set_as_child_relation_fields(QStringList fields);
@@ -88,7 +92,7 @@ class db_relational_model : public QSqlRelationalTableModel
   QModelIndex create_index(int row, int column);
   int row_count();
   QString get_text_data(int row, int column);
-  db_relational_model *get_child_model();
+  db_relational_model *get_child_model(const QString &table_name);
   /// get fields infos
   bool field_is_auto_value(int col);
   bool field_is_required(int col);
@@ -115,7 +119,9 @@ class db_relational_model : public QSqlRelationalTableModel
   QStringList pv_as_child_relation_values;
   bool pv_message_dialogs_enabled;
   QString pv_user_table_name; // User friendly table name
-  db_relational_model *pv_child_model;
+  //db_relational_model *pv_child_model;
+  QList<db_relational_model*> pv_child_models;  // list of child models
+
   db_relational_model *pv_parent_model;
   void update_child_relations(const QModelIndex &index);
   //int pv_row_to_insert; // Look at before_insert() and current_row_changed()
@@ -129,6 +135,7 @@ class db_relational_model : public QSqlRelationalTableModel
   bool init_field_is_auto_value(int col);
   bool pv_current_index_is_valid;
   bool child_data_commited();
+  bool pv_model_is_valid;
 };
 
 // Have a problem to test if a field is auot_increment with Mysql.

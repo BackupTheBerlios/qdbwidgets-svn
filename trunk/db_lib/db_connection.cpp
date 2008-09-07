@@ -164,7 +164,8 @@ QString db_connection::get_port() const
 
 QString db_connection::get_db_name() const
 {
-  return pv_db.databaseName();
+  //return pv_db.databaseName();
+  return pv_db_name;
 }
 
 QString db_connection::get_login_user() const

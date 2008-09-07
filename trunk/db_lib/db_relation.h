@@ -29,10 +29,15 @@
 class db_relation
 {
  public:
-  db_relation(const QString & tableName);
+  //db_relation();
+  db_relation(const QString & table_name);
+  QString get_parent_table();
   /// add a filed to relation concerned by parent table
   void add_parent_relation_field(const QString &field_name);
   QStringList get_parent_relation_fields();
+  /// Set the child table
+  void set_child_table(const QString & table_name);
+  QString get_child_table();
   /// add a filed to relation concerned by child table
   void add_child_relation_field(const QString &field_name);
   QStringList get_child_relation_fields();
@@ -40,7 +45,8 @@ class db_relation
  private:
   QStringList pv_parent_table_relations;
   QStringList pv_child_table_relations;
-  QString pv_table_name;
+  QString pv_parent_table_name;
+  QString pv_child_table_name;
 };
 
 #endif

@@ -57,7 +57,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
     //pv_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
     /// tests
     pv_child_model = new db_relational_model(cnn, "adresse_client_tbl",this);
-    pv_model->set_child_model(pv_child_model);
+    pv_model->add_child_model(pv_child_model);
   /// relation
   db_relation relation(pv_table_name);
   relation.add_parent_relation_field("cli_cod_pk");
@@ -82,7 +82,7 @@ bool main_dialog::init(const db_connection *cnn, const QString& table_name)
 //    pv_tabw->set_selection_model(pv_selection_model);
 
     pv_form = new db_form("test");
-    pv_form->init(cnn, pv_table_name, "address_client");
+    pv_form->init(cnn, pv_table_name/*, "address_client"*/);
     pv_searchw = new db_search_widget("test");
     pv_searchw->init(cnn, pv_table_name);
 
