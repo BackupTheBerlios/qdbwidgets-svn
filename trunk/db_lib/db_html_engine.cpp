@@ -11,6 +11,10 @@
 #include <QModelIndex>
 #include <QUrl>
 #include <QColor>
+#include <QSqlRecord>
+
+#include <QPrinter>
+#include <QPrintDialog>
 
 db_html_engine::db_html_engine()
 {
@@ -19,32 +23,9 @@ db_html_engine::db_html_engine()
   pv_cnn = 0;
   pv_html_view = new db_html_view;
   pv_txt_edit = new QTextEdit;
-  pv_txt_browser = new QTextBrowser;
+  pv_txt_edit = new QTextEdit;
   pv_doc = new QTextDocument;
 }
-/*
-bool db_html_engine::set_model(const db_relational_model *model)
-{
-  int i=0;
-  pv_model = model;
-  for(i=0; i<pv_model->columnCount(); i++){
-    pv_headers.insert(i, pv_model->headerData(i, Qt::Horizontal).toString());
-  }
-  if(pv_model == 0){
-    return false;
-  }
-  pv_child_model = pv_model->get_child_model();
-  if(pv_child_model != 0){
-    for(i=0; i<pv_child_model->columnCount(); i++){
-      pv_child_headers.insert(i, pv_child_model->headerData(i, Qt::Horizontal).toString());
-    }
-  }
- // tests();
-
-  return true;
-}
-*/
-
 
 bool db_html_engine::init(const db_connection *cnn, const QString &table_name)
 {
@@ -89,22 +70,90 @@ bool db_html_engine::init(const db_connection *cnn, const QString &table_name)
   return true;
 }
 
+QString db_html_engine::get_html_header()
+{
+  QString html;
+
+  html = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n";
+  html += "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n";
+  html += "<style type=\"text/css\">\nh1 {color:blue; }\n</style>\n";
+  //html += "<link rel=\"stylesheet\" type=\"text/css\" href=\"format.css\">";
+  //html += "<h1>Titre</h1>\n";
+
+  //html += "<p class=\"child\">Titre en rouge</p>\n";
+
+  html += "<html>\n";
+  html += "<head>\n";
+  html += "<meta http-equiv=\"Content-Style-Type\" content=\"text/css\">\n";
+  html += "</head>\n";
+
+  return html;
+}
+
+QString db_html_engine::get_html_line(const QString text, bool br)
+{
+  QString html;
+  html = Qt::escape(text);
+  if(br){
+    html += "<br>\n";
+  }
+  return html;
+}
+
+void db_html_engine::set_doc_header(const QString &html)
+{
+  pv_html_doc_header = "<table width=\"100%\">\n <tr>\n";
+  pv_html_doc_header += "  <td align=\"center\">" + html + "\n";
+  pv_html_doc_header += "  </td>\n </tr>\n</table>\n";
+}
+
+void db_html_engine::set_doc_top(const QString &html_left, const QString &html_right)
+{
+  // Global top table
+  pv_html_doc_top = "<table border=\"0\" width=\"100%\" cellspacing=\"1\" cellpadding=\"3\">\n";
+  pv_html_doc_top += "<tr>\n<td width=\"70%\">\n";
+  // Top left 
+  //pv_html_doc_top += "<td width=\"70%\">";
+  pv_html_doc_top += "<table border=\"0\" cellspacing=\"1\" cellpadding=\"3\" width=\"100%\">\n<tr><td>\n";
+  pv_html_doc_top += html_left;
+  // end top left 
+  pv_html_doc_top += "</td></tr></table>\n";
+  pv_html_doc_top += "</td><td>\n";
+  // Top right 
+  pv_html_doc_top += "<table border=\"1\" cellspacing=\"0\" cellpadding=\"3\" width=\"100%\">\n<tr><td>\n";
+  pv_html_doc_top += html_right;
+  // end top right 
+  pv_html_doc_top += "</td></tr></table>\n";
+  // End global top table
+  pv_html_doc_top += "</td></tr>\n</table>\n";
+  //pv_html_doc_top = "";
+}
+
+QString db_html_engine::get_top_right_data(const QString &table_name, const QString &filter)
+{
+  int i=0, y=0;
+  QString html;
+  db_relational_model table_model(pv_cnn, table_name);
+  table_model.setFilter(filter);
+  table_model.select();
+
+  for(i=0; i < table_model.rowCount(); i++){
+    for(y=0; y < table_model.columnCount(); y++){
+      html += get_html_line(table_model.get_text_data(i, y), true);
+    }
+  }
+
+  return html;
+}
+
 void db_html_engine::tests()
 {
   int i=0;
-  QString html, css;
+  QString html, css, tmp1, tmp2;
   QColor bg_color("blue");
   QColor tables_bg_color("white");
   QColor tables_border_color("blue");
-/*
-  //css  = ".child { color:#DE0000; ";
-  css  = ".child { color:#DE0000; ";
-  css  += "  font-family:sans-serif;";
-  css  += "  margin-left: 50px;";
-  css  += "  margin-right: 50px;";
-  css  += "  background-color: " + bg_color.name() + ";";
-  css  += "}";
-*/
+
   css  = "table {";
   css  += "  border-style: solid;";
   css  += "  border-color: " + tables_border_color.name() + ";";
@@ -115,25 +164,21 @@ void db_html_engine::tests()
     std::cerr << "db_html_engine::" << __FUNCTION__ << ": select() failed" << std::endl;
   }
 
-  html = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n";
-  html += "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n";
-  html += "<style type=\"text/css\">\nh1 {color:blue; }\n</style>\n";
-  //html += "<link rel=\"stylesheet\" type=\"text/css\" href=\"format.css\">";
-  html += "<h1>Titre</h1>\n";
 
-  html += "<p class=\"child\">Titre en rouge</p>\n";
+  html = get_html_header();
 
-  html += "<html>\n";
-  html += "<head>\n";
-  html += "<meta http-equiv=\"Content-Style-Type\" content=\"text/css\">\n";
-  html += "</head>\n";
+  //set_doc_header(get_html_line("Entete"));
+  set_doc_header("<h1>Test report </h1><img src=\"logo_left.png\"></img>");
 
-  //html += "<table border=1>\n";
 
+  tmp1 = get_html_line("Donnes de gauche", true);
+  tmp1 += get_html_line("Donnes de gauche, 2eme ligne", false);
+
+  
+
+
+  //html += get_top_right_data("", "");
   html += get_data();
-
-  //html += "</table>\n";
-
   html += "</html>\n";
 
 
@@ -147,30 +192,44 @@ void db_html_engine::tests()
 //  pv_txt_edit->setDocument(pv_doc);
 //  pv_txt_edit->show();
 
-  pv_txt_browser->setDocument(pv_doc);
-  pv_txt_browser->show();
+  pv_txt_edit->setDocument(pv_doc);
+  pv_txt_edit->show();
+
+
+
+  QPrinter printer;
+  QPrintDialog *dialog = new QPrintDialog(&printer);
+
+  dialog->setWindowTitle("Print Document");
+  if (pv_txt_edit->textCursor().hasSelection())
+        dialog->addEnabledOption(QAbstractPrintDialog::PrintSelection);
+    if (dialog->exec() != QDialog::Accepted)
+        return;
+
+    pv_txt_edit->print(&printer);
+
 }
 
 QString db_html_engine::get_data()
 {
-  int i = 0, y = 0;
-  QString html;
+  int i = 0, y = 0, field_index = 0;
+  QString html, data;
 
   for(i=0; i<pv_table_model->rowCount(); i++){
     QModelIndex index = pv_table_model->create_index(i, 0);
     //html += pv_html_view->get_column_row(i);
+    html += pv_html_doc_header;
+    field_index = pv_table_model->record(i).indexOf("soc_nom");
+    data = pv_table_model->get_text_data(i, field_index);
+    std::cout << "-------------> soc_nom: " << data.toStdString() << std::endl;
+    set_doc_top("Test gauche", get_top_right_data("societe_vue", "soc_nom='" + data + "'"));
+    html += pv_html_doc_top;
     html += "<table border=\"0\" style=\"margin-top: 15px \" cellspacing=\"0\" cellpadding=\"3\">\n";
     html += pv_html_view->get_tab_row(i, true);
     html += "</table>\n";
     for(y=0; y < pv_child_views.size(); y++){
-      //html += "</table>\n";
-      //html += "<span class=\"child\">\n";
       html += pv_child_views.at(y)->get_user_table_name();
-      //html += "</span>\n";
-      //html += "<p class=\"child\">\n";
       html += pv_child_views.at(y)->get_column_view(true);
-      //html += "</p>\n";
-      //html += "<table border=1>\n";
     }
     pv_table_model->current_row_changed(index);
   }

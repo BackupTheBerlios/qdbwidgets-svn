@@ -32,7 +32,7 @@
 
 class QFile;
 class QTextEdit;
-class QTextBrowser;
+//class QTextBrowser;
 class QTextDocument;
 
 class db_html_engine
@@ -48,6 +48,11 @@ class db_html_engine
   bool add_child_table(const db_relation &relation, db_html_view_attributes attributes,
                         const QStringList hidden_fields = QStringList(), 
                         bool pks_hidden = false);
+  QString get_html_header();
+  QString get_html_line(const QString text, bool br = false);
+  void set_doc_header(const QString &html);
+  void set_doc_top(const QString &html_left, const QString &html_right);
+  QString get_top_right_data(const QString &table_name, const QString &filter);
   QString get_data();
   void tests();
 
@@ -65,8 +70,9 @@ class db_html_engine
   bool write_file(QString path, QString txt);
   // tests
   QTextEdit *pv_txt_edit;
-  QTextBrowser *pv_txt_browser;
   QTextDocument *pv_doc;
+  QString pv_html_doc_header;
+  QString pv_html_doc_top;
 };
 
 #endif
