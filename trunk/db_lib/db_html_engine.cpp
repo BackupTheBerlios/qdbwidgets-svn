@@ -3,6 +3,7 @@
 #include "db_relation.h"
 
 #include <QTextDocument>
+#include <QTextFrame>
 #include <QTextBrowser>
 //#include <QTextStream>
 #include <QTextEdit>
@@ -14,6 +15,7 @@
 #include <QSqlRecord>
 
 #include <QPrinter>
+#include <QPainter>
 #include <QPrintDialog>
 
 db_html_engine::db_html_engine()
@@ -27,11 +29,14 @@ db_html_engine::db_html_engine()
   pv_doc = new QTextDocument;
 }
 
+/// NOTE: delete childs ?
+
 bool db_html_engine::init(const db_connection *cnn, const QString &table_name)
 {
   pv_cnn = cnn;
 
   pv_table_model = new db_relational_model(pv_cnn, table_name);
+  /// NOTE: Ne devrait pas être transmis comme ca, mais passé en paramètre.. (?)
   pv_html_view->set_model(pv_table_model);
   pv_html_view->set_pks_hidden();
 
@@ -164,7 +169,6 @@ void db_html_engine::tests()
     std::cerr << "db_html_engine::" << __FUNCTION__ << ": select() failed" << std::endl;
   }
 
-
   html = get_html_header();
 
   //set_doc_header(get_html_line("Entete"));
@@ -174,13 +178,9 @@ void db_html_engine::tests()
   tmp1 = get_html_line("Donnes de gauche", true);
   tmp1 += get_html_line("Donnes de gauche, 2eme ligne", false);
 
-  
-
-
   //html += get_top_right_data("", "");
   html += get_data();
   html += "</html>\n";
-
 
   //std::cout << html.toStdString() << std::endl;
   //pv_doc->addResource(QTextDocument::StyleSheetResource, QUrl("format.css"), css);
@@ -188,26 +188,59 @@ void db_html_engine::tests()
   pv_doc->setHtml(html);
 
   //std::cout << pv_doc->toHtml().toStdString() << std::endl;
-  write_file("test.html", pv_doc->toHtml());
+  //write_file("test.html", pv_doc->toHtml());
+  write_file("test.html", html);
 //  pv_txt_edit->setDocument(pv_doc);
 //  pv_txt_edit->show();
 
   pv_txt_edit->setDocument(pv_doc);
   pv_txt_edit->show();
 
-
-
   QPrinter printer;
   QPrintDialog *dialog = new QPrintDialog(&printer);
 
+//  QTextFrame *root_frame = pv_doc->rootFrame();
+
   dialog->setWindowTitle("Print Document");
+  // Setup printer
+  if(dialog->exec() != QDialog::Accepted){
+    return;
+  }
+
+  // Initial document size
+  //std::cout << "---> pageCount(): " << pv_doc->pageCount() << std::endl;
+  std::cout << "---> Initial size().width(): " << pv_doc->size().width() << std::endl;
+  std::cout << "---> Initial size().height(): " << pv_doc->size().height() << std::endl;
+
+  // Print parameters
+  std::cout << "---> Printer: page height: " << printer.pageRect().height() << std::endl;
+  std::cout << "---> Printer: page width: " << printer.pageRect().width() << std::endl;
+  // Resize document's width:
+  qreal area, new_height;
+  // Actual document area:
+  area = pv_doc->size().width() * pv_doc->size().height();
+  std::cout << "---> area: " << area << std::endl;
+  // Calculate new height, based on area and printer's given width
+  new_height = area / (qreal)printer.pageRect().width();
+  // Setup new dimetions
+  QSizeF doc_size((qreal)printer.pageRect().width(), new_height);
+  pv_doc->setPageSize(doc_size);
+
+  std::cout << "---> pageCount(): " << pv_doc->pageCount() << std::endl;
+  std::cout << "---> size().width(): " << pv_doc->size().width() << std::endl;
+  std::cout << "---> size().height(): " << pv_doc->size().height() << std::endl;
+
+  //std::cout << "---> blockCount(): " << pv_doc->blockCount() << std::endl;
+
+
+/*
   if (pv_txt_edit->textCursor().hasSelection())
         dialog->addEnabledOption(QAbstractPrintDialog::PrintSelection);
     if (dialog->exec() != QDialog::Accepted)
         return;
 
     pv_txt_edit->print(&printer);
-
+*/
 }
 
 QString db_html_engine::get_data()
@@ -228,8 +261,10 @@ QString db_html_engine::get_data()
     html += pv_html_view->get_tab_row(i, true);
     html += "</table>\n";
     for(y=0; y < pv_child_views.size(); y++){
-      html += pv_child_views.at(y)->get_user_table_name();
+      //html += "<table border=\"0\" style=\"margin-top: 15px \" cellspacing=\"0\" cellpadding=\"3\">\n";
+      //html += pv_child_views.at(y)->get_user_table_name();
       html += pv_child_views.at(y)->get_column_view(true);
+      //html += "</table>";
     }
     pv_table_model->current_row_changed(index);
   }

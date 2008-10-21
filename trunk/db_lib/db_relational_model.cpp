@@ -323,7 +323,7 @@ bool db_relational_model::delete_row(int row)
   }
   return true;
 }
-/// TODO: all childs...
+
 bool db_relational_model::delete_child_rows()
 {
   int i = 0, row_count=0;
@@ -511,18 +511,27 @@ bool db_relational_model::parent_has_valid_index()
   return pv_parent_model->current_index_is_valid();
 }
 
-/// TODO: all childs...
-bool db_relational_model::has_child_model()
+bool db_relational_model::has_child_models()
 {
+/*
   if(pv_child_models.size() > 0){
     return true;
+  }
+*/
+  if(pv_child_models.isEmpty()){
+    return false;
   }
 /*
   if(pv_child_model != 0){
     return true;
   }
 */
-  return false;
+  return true;
+}
+
+int db_relational_model::child_models_count()
+{
+  return pv_child_models.size();
 }
 
 bool db_relational_model::has_parent_model()
@@ -591,7 +600,7 @@ QString db_relational_model::get_text_data(int row, int column)
   current_row_changed(index);
   return data(index).toString();
 }
-/// TODO: all childs...
+
 db_relational_model *db_relational_model::get_child_model(const QString &table_name)
 {
   int i = 0;
@@ -604,6 +613,14 @@ db_relational_model *db_relational_model::get_child_model(const QString &table_n
 
   return 0;
 //  return pv_child_model;
+}
+
+db_relational_model *db_relational_model::get_child_model(int at)
+{
+  if((at >= pv_child_models.count())||(at < 0)) {
+    return 0;
+  }
+  return pv_child_models.at(at);
 }
 
 /*

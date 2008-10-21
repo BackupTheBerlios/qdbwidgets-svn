@@ -26,6 +26,7 @@
 
 #include <QWidget>
 #include <QString>
+#include <QDate>
 
 class QTableWidget;
 class QVBoxLayout;
@@ -43,8 +44,11 @@ class db_search_widget : public QWidget
 
   private slots:
     void search();
+    void multi_filed_search();
 
   private:
+    // Remove white spaces at beginging and end of string
+    QString remove_spaces(QString str, bool at_beginning, bool at_end);
     db_relational_model *pv_data_model;
     QVBoxLayout *pv_vlayout;
     QHBoxLayout *pv_hlayout;
@@ -53,6 +57,9 @@ class db_search_widget : public QWidget
     QString pv_name;
     QPushButton *pb_search;
     QLabel *lb_sql;
+    QLineEdit *le_search;
+    QPushButton *pb_multi_filed_search;
+    QDate get_date(QString str);
 
     // TESTS
     db_table_widget *test;

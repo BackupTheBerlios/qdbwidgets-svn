@@ -85,7 +85,8 @@ class db_relational_model : public QSqlRelationalTableModel
   // Return true while the model has rows
   bool has_rows();
   bool parent_has_valid_index();
-  bool has_child_model();
+  bool has_child_models();
+  int child_models_count();
   bool has_parent_model();
   bool current_index_is_valid();
   // Needed, because createIndex is protected
@@ -93,6 +94,7 @@ class db_relational_model : public QSqlRelationalTableModel
   int row_count();
   QString get_text_data(int row, int column);
   db_relational_model *get_child_model(const QString &table_name);
+  db_relational_model *get_child_model(int at);
   /// get fields infos
   bool field_is_auto_value(int col);
   bool field_is_required(int col);

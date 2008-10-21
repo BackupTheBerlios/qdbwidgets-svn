@@ -57,19 +57,21 @@ class db_html_view
   bool set_model(const db_relational_model *model);
   void set_attributes(db_html_view_attributes attributes);
   QString get_user_table_name();
-  QString get_column_row(int row);
+  QString get_column_row(int row, db_relational_model *model = 0);
   QString get_column_headers();
-  QString get_column_view(bool with_headers = true);
+  QString get_column_view(bool with_headers = true, db_relational_model *model = 0 /*, QString html = QString()*/);
   QString get_tab_row(int row, bool with_headers = true);
   QString get_tab_view(bool with_headers = true);
 
  private:
   QString get_header(int column);
-  QString get_data(int row, int column);
+  QString get_data(int row, int column, db_relational_model *model = 0);
   db_relational_model *pv_table_model;
   QStringList pv_headers;
   QList<int> pv_hidden_fields;
   db_html_view_attributes pv_attributes;
+  QString pv_html;
+  void test_rec(bool with_headers = true, db_relational_model *model = 0);
 };
 
 

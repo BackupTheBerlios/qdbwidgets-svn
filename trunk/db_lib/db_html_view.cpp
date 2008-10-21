@@ -114,14 +114,14 @@ QString db_html_view::get_user_table_name()
   return html;
 }
 
-QString db_html_view::get_column_row(int row)
+QString db_html_view::get_column_row(int row, db_relational_model *model)
 {
   int i=0;
   QString html;
 
   html += "<tr>\n";
   for(i=0; i<pv_headers.count(); i++){
-    html += get_data(row, i);
+    html += get_data(row, i, model);
   }
   html += "\n</tr>\n";
 
@@ -142,23 +142,80 @@ QString db_html_view::get_column_headers()
   return html;
 }
 
-QString db_html_view::get_column_view(bool with_headers)
+QString db_html_view::get_column_view(bool with_headers, db_relational_model *model /*, QString html*/)
 {
-  int i=0;
-  QString html;
 
+  //QString html;
+/*
   html = "<table border=\"1\" style=\"margin-left: " + pv_attributes.get_left_margin() + ";\" cellspacing=\"0\" cellpadding=\"3\">\n";
-
   if(with_headers){
     html += get_column_headers();
   }
   // Write data
   for(i=0; i<pv_table_model->rowCount(); i++){
+    QModelIndex index = pv_table_model->create_index(i, 0);
     html += get_column_row(i);
+
+    if(model == 0){
+      for(y=0; y < pv_table_model->child_models_count(); y++){
+        get_column_view(with_headers, pv_table_model->get_child_model(y));
+      }
+    }else{
+      for(z=0; z < model->rowCount(); z++){
+        std::cout << "get data[" << i << ";" << y << ";" << z << "]" << std::endl;
+        html += get_column_row(i, model);
+      }
+    }
+    pv_table_model->current_row_changed(index);
   }
 
   html += "</table>\n";
-  return html;
+*/
+  test_rec(with_headers, model);
+
+  return pv_html;
+}
+
+void db_html_view::test_rec(bool with_headers = true, db_relational_model *model)
+{
+  int i=0, y=0, z=0;
+
+  if(model == 0){
+    model = pv_table_model;
+    std::cout << "->ROOT" << std::endl;
+    pv_html = "";
+  }
+
+  /// Tests recursivité
+  QString tbl_name;
+  tbl_name = model->tableName();
+  // data...
+  pv_html += "<table border=\"1\">";
+  for(i=0; i < model->rowCount(); i++){
+    QModelIndex index = pv_table_model->create_index(i, 0);
+    // For each column
+    pv_html += "<tr>";
+    std::cout << " --> Table: " << model->tableName().toStdString() << ": getting data[" << i << "]" << std::endl;
+    for(y=0; y < model->columnCount(); y++){
+      //std::cout << "----> Data... Table name: " << tbl_name.toStdString() << ": " << model->get_text_data(i, y).toStdString() << std::endl;
+      pv_html += "<td>" + model->get_text_data(i, y) + "</td>";
+      std::cout << model->get_text_data(i, y).toStdString() << " | ";
+    }
+    std::cout << std::endl;
+    pv_html += "</tr>\n";
+    model->current_row_changed(index);
+    if(model->has_child_models()){
+      // For each child model in same level
+      for(y=0; y < model->child_models_count(); y++){
+        std::cout << "  +--> Table: " << model->tableName().toStdString() << ": calling for child named: " << model->get_child_model(y)->tableName().toStdString() << std::endl;
+        pv_html += "</table>\n";
+        get_column_view(with_headers, model->get_child_model(y));
+      }
+    }
+  }
+
+  pv_html += "</table> RETURN\n";
+  std::cout  << "-----> RETURN - TABLE: " << model->tableName().toStdString() << std::endl;
 }
 
 QString db_html_view::get_tab_row(int row, bool with_headers)
@@ -210,14 +267,18 @@ QString db_html_view::get_header(int column)
   return html;
 }
 
-QString db_html_view::get_data(int row, int column)
+QString db_html_view::get_data(int row, int column, db_relational_model *model)
 {
   int i = 0;
   QString html;
 
+  if(model == 0){
+    model = pv_table_model;
+  }
+
   if(!field_is_hidden(column)){
     html = " <td>";
-    html += Qt::escape(pv_table_model->get_text_data(row, column));
+    html += Qt::escape(model->get_text_data(row, column));
     html += "</td>";
   }
   return html;

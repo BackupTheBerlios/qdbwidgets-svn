@@ -57,8 +57,13 @@ bool db_search_widget::init(const db_connection *cnn, const QString &table_name)
   headers = pv_data_table->get_header_data();
   pv_search_table->setHorizontalHeaderLabels(headers);
   pv_search_table->resizeColumnsToContents();
+  pv_search_table->resizeRowsToContents();
   // Buttons
   pb_search = new QPushButton(tr("&Search"));
+
+  // Multi field search
+  pb_multi_filed_search = new QPushButton(tr("Search in all fields"));
+  le_search = new QLineEdit;
 
   // SQL line
   lb_sql = new QLabel;
@@ -66,19 +71,96 @@ bool db_search_widget::init(const db_connection *cnn, const QString &table_name)
   // Layout
   pv_vlayout = new QVBoxLayout(this);
   pv_hlayout = new QHBoxLayout(this);
+
+  pv_hlayout->addWidget(le_search);
+  pv_hlayout->addWidget(pb_multi_filed_search);
+  pv_vlayout->addLayout(pv_hlayout);
   pv_vlayout->addWidget(pv_search_table);
   pv_vlayout->addWidget(pv_data_table);
-  pv_hlayout->addWidget(pb_search);
   pv_vlayout->addWidget(lb_sql);
-  pv_vlayout->addLayout(pv_hlayout);
+  pv_vlayout->addWidget(pb_search);
 
   // Slots
   connect(pb_search, SIGNAL(clicked()), this, SLOT(search()));
+  connect(pb_multi_filed_search, SIGNAL(clicked()), this, SLOT(multi_filed_search()));
 
   // TESTS
   //test = new db_table_widget(pv_name, this);
   //test->init(cnn, "address_client");
   //pv_vlayout->addWidget(test);
+}
+
+void db_search_widget::multi_filed_search()
+{
+  QSqlRecord rec;
+  QSqlField field;
+  QString filter, txt;  // txt: searched string
+  bool txt_is_num = false;
+  QDate date; // for date format
+  bool txt_is_date = false;
+  QString SQL;
+  int i=0, num_val = 0;
+
+  if(le_search->text().isEmpty()){
+    return;
+  }
+
+  rec = pv_data_model->record(0); // NOTE: empty test ?
+
+  // Clear model's filter
+  pv_data_model->setFilter(filter);
+
+  SQL = "SELECT * FROM " + pv_data_table->get_table_name();
+
+  // Get searched string
+  txt = le_search->text();
+  txt = remove_spaces(txt, true, true);
+  le_search->setText(txt);
+  // Test if is num value
+  num_val = txt.toInt(&txt_is_num, 10);
+  // Test if is date value
+  date = get_date(txt);
+  txt_is_date = date.isValid();
+
+  // run into all fileds
+  for(i=0; i<pv_data_model->columnCount(); i++){
+    field = rec.field(i);
+ 
+    // Search wich type of data we have, and assing correct operator
+    if((field.type() == QVariant::Int)||(field.type() == QVariant::Double)){
+      if(txt_is_num){
+        if(i>0){
+          filter += " OR ";
+        }
+        filter += field.name() + " =" + txt + " ";
+      }
+    }else if(field.type() == QVariant::Date){
+      if(txt_is_date){
+        if(i>0){
+          filter += " OR ";
+        }
+        filter += field.name() + " ='" + date.toString("yyyy-MM-dd") + "' ";
+      }
+    }else if(field.type() == QVariant::String){
+      if(i>0){
+        filter += " OR ";
+      }
+      filter += field.name() + " LIKE '" + txt + "' ";
+    }else{
+      std::cerr << "db_search_widget::" << __FUNCTION__ << ": unknow data type" << std::endl;
+      return;
+    }
+    //filter += txt;
+  }
+  std::cout << filter.toStdString() << std::endl;
+  if(!filter.isEmpty()){
+    SQL += " WHERE ";
+  }
+  SQL +=  filter;
+  //lb_sql->setText(SQL);
+  //lb_sql->setText(filter);
+  pv_data_model->setFilter(filter);
+  pv_data_table->select();
 }
 
 void db_search_widget::search()
@@ -89,6 +171,12 @@ void db_search_widget::search()
   QSqlField field;
   QString filter;
   QString SQL;
+  bool txt_is_num = false;
+  int num_val = 0;
+
+  // Clear model's filter
+  pv_data_model->setFilter(filter);
+
   SQL = "SELECT * FROM " + pv_data_table->get_table_name();
   // Watch every line
   int row;
@@ -104,8 +192,8 @@ void db_search_widget::search()
       if(item != 0){
         QString txt;
         txt = item->text();
-        // Remove (FIXME end and beginning) white spaces
-        txt.remove(QRegExp(" "));
+        // Remove end and beginning white spaces
+        txt = remove_spaces(txt, true, true);
         // Replace with correct string to the list
         item->setText(txt);
         if(!txt.isEmpty()){
@@ -121,12 +209,24 @@ void db_search_widget::search()
           if((field.type() == QVariant::Int)||(field.type() == QVariant::Double)){
             if((txt.at(0) != QChar('>'))&&(txt.at(0) != QChar('<'))){
               filter += " =";
+            }else if(txt.at(0) == QChar('>')){
+              txt.remove(0, 1);
+              filter += " >";
+            }else if(txt.at(0) == QChar('<')){
+              txt.remove(0, 1);
+              filter += " <";
             }
-            filter += " ";
+            // Only numeric values are allowed here
+            num_val = txt.toInt(&txt_is_num, 10);
+            if(!txt_is_num){
+              item->setText("#ERROR");
+              return;
+            }
           }else if(field.type() == QVariant::String){
             filter += " LIKE '";
           }else{
             std::cerr << "db_search_widget::" << __FUNCTION__ << ": unknow data type" << std::endl;
+            return;
           }
           filter += txt;
           // Search wich type of data we have, and assing correct operator
@@ -141,11 +241,92 @@ void db_search_widget::search()
     }
     end_line = true;
   }
-  std::cerr << "SQL filter: " << filter.toStdString().c_str() << std::endl;
+  std::cerr << "SQL filter: " << filter.toStdString() << std::endl;
   if(!filter.isEmpty()){
     SQL += " WHERE ";
   }
   SQL +=  filter;
   lb_sql->setText(SQL);
+  //lb_sql->setText(filter);
+  pv_data_model->setFilter(filter);
   pv_data_table->select();
+  //pv_data_model->select();
+}
+
+QString db_search_widget::remove_spaces(QString str, bool at_beginning, bool at_end)
+{
+  int i = 0;
+  // Kill whitespces at beginning
+  if(at_beginning){
+    for(i=0; i<str.size(); i++){
+      if(str.at(i) == QChar(' ')){
+        str.remove(i, 1);
+      }else{
+        break;
+      }
+    }
+  }
+  // Kill whitespces at end
+  if(at_end){
+    for(i=str.size()-1; i >= 0; i--){
+      if(str.at(i) == QChar(' ')){
+        str.remove(i, 1);
+      }else{
+        break;
+      }
+    }
+  }
+  return str;
+}
+
+QDate db_search_widget::get_date(QString str)
+{
+  QDate date;
+  QStringList s_date;
+  QString s_y, s_M, s_d;
+  int i_y, i_M, i_d;
+  bool ok = false;
+
+  s_date = str.split(".");
+  if(s_date.count() != 3){
+    s_date = str.split("/");
+  }
+  if(s_date.count() != 3){
+    return date;
+  }
+  // Try d/m/y formats
+  s_d = s_date.at(0);
+  s_M = s_date.at(1);
+  s_y = s_date.at(2);
+
+  // Test for num values
+  i_d = s_d.toInt(&ok, 10);
+  if(!ok){
+    return date;
+  }
+  i_M = s_M.toInt(&ok, 10);
+  if(!ok){
+    return date;
+  }
+  i_y = s_y.toInt(&ok, 10);
+  if(!ok){
+    return date;
+  }
+  // If year was input is 1 digit
+  if(s_y.length() == 1){
+    i_y = i_y + 2000;
+  }
+  // If year was input 2 digit, like 08
+  if((s_y.length() == 2)&&(s_y.at(0) == QChar('0'))){
+    i_y = i_y + 2000;
+  }
+
+  date.setDate(i_y, i_M, i_d);
+
+  //date.fromString(str, "dd.MM.yy");
+  if(!date.isValid()){
+    std::cerr << "DATE not valid " << std::endl;
+  }
+//  std::cout << "DATE: " << date.toString("yyyy-MM-dd").toStdString() << std::endl;
+  return date;
 }
